@@ -33,7 +33,8 @@ sum(exp.(weights)) == 1 for resampling
 module particle_filter
 
 using StatsBase
-
+using Distributions 
+include("../utils.jl")
 mutable struct POMP
     samples::AbstractVector
     weights::AbstractVector{Float64}
@@ -80,5 +81,36 @@ function filter!(particle_POMP,y_t, a)
     return particle_POMP
 end
 
+
+
+"""
+GC_samples
+draws N samples from a normal distribtion following the first two moments and then rewights the
+sampleto match higher cumulants using the Gram-Charlier aproximation 
+
+Thsi is for 1 dimensional dsns only 
+"""
+function GC_samples(N, cumulants)
+    @assert length(cumulants) < 6
+    d = Distributions.Normal(cumulants[1],sqrt(cumulants[2]))
+    samples = rand(d,N)
+    y = (samples .-cumulants[1])./sqrt(cumulants[2])
+    weights = repeat([1],N)
+    for i in 3:length(cumulants)
+        weights += cumulants[i]/(cumulants[2]^(i/2)*factorial(i)) * utils.hermite.(y,i)
+    end 
+    weights[weights .<= 0] .= 10^-12
+    return samples, log.(weights./N)
+end
+
+
+"""
+reset the samples of a POMP model to 
+"""
+function init_samples!(POMP,N,cumulants)
+    samples,weights = GC_samples(N, cumulants)
+    POMP.samples,POMP.weights=samples,weights
+    return POMP
+end 
 
 end # module 

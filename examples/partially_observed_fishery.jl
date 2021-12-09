@@ -6,7 +6,8 @@ see the test file for a full description of the model.
 """
 module partially_observed_fishery
 
-include("utils.jl")
+include("../utils.jl")
+include("../POMP/particle_filter.jl")
 include("simple_fishery.jl")
 using Distributions
 using StatsBase
@@ -23,26 +24,46 @@ pars[7] - Distribution d_catch probability of catch
 pars[8] - Distribution g_yx probability of observation log_y_t given log_x_t
 pars[9] - Float64 weight_catch statistical weight of fisheries dependent data 
 """
-function Tx(x,f,pars)
+function T!(x,f,pars)
     m = pars[1]
-    f = exp(rand(pars[7],1)[1])*f
-    catch_ = x*(1-exp(-f/(m+f)))   
+    f = f
+    catch_ = x*(1-exp(-f/(m+f)))*exp(rand(pars[7],1)[1])  
     return x*exp(-m-f) + pars[2]*x*exp(rand(pars[6],1)[1])/(1+pars[3]*x),  catch_
 end
 """
 sames as above but does not record catchs
 """
-function Tx_nc(x,f,pars)
+function T_filter!(x,f,pars)
     m = pars[1]
     f = exp(rand(pars[7],1)[1])*f
     catch_ = x*(1-exp(-f/(m+f)))   
     return x*exp(-m-f) + pars[2]*x*exp(rand(pars[6],1)[1])/(1+pars[3]*x)
 end
 
-
+"""
+single period rewards
+"""
 function profit(f, catch_ ,pars)
     return pars[4]*catch_ - pars[5]*f
 end 
+
+"""
+log likelihood of x given 
+"""
+function G(x,y,f,pars)
+    m = pars[1]
+    log_Y_t, log_c_t = y[1], y[2]
+    L_y = pdf.(pars[8], x - log_Y_t)
+    L_c = pdf.(pars[7], x- (log_c_t - log(1-exp(-f/(m+f)))))
+    log_L = log(L_y)*log(L_c)^pars[9]
+    return log_L
+end
+
+
+
+
+
+
 
 
 """
@@ -193,7 +214,7 @@ function reweight_samples!(samples, weights)
     return samples, weights
 end
 
-using Plots
+
 function test_sim(B,f,pars,N_steps, N)
     B_ = zeros(N_steps, length(B))
     log_x_t_ = zeros(N_steps)
