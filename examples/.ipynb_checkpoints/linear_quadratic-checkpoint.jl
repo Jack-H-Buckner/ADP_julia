@@ -20,7 +20,7 @@ function simulate_y(x,pars)
     return rand(pars[4],1) .+ pars[2]*x
 end 
 
-pars1d = (0.5,1.0,Distributions.Normal(0,1.0),Distributions.Normal(0,2.0))
+pars1d = (-0.5,1.0,Distributions.Normal(0,1.0),Distributions.Normal(0,0.5))
 
 pars2d = ([0.5 -0.5; 0.5 0.5],[1.0 0; 0 1.0], 
            Distributions.MvNormal([0,0],[1.0 0.0; 0.0 1.0 ]),

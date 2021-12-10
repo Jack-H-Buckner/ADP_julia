@@ -40,6 +40,7 @@ mutable struct POMP
     weights::AbstractVector{Float64}
     N::Int
     G # likelihood function
+    G_sim # simulated draw from likelihood 
     T! # state transition simulations
 end 
 
@@ -52,14 +53,14 @@ To fix this this function draws a weighted sample with replacement, this
 process produces a new sample with all weights equal to 1/n_samples that still 
 represetns the same probability distribution. 
 """
-function reweight_samples!(particle_POMP)
-    samples, weights = particle_POMP.samples,particle_POMP.weights
+function reweight_samples!(POMP)
+    samples, weights = POMP.samples,POMP.weights
     N = length(samples)
     inds = sample(collect(1:N),StatsBase.pweights(exp.(weights)),N)
     samples = samples[inds]
     weights = log.(repeat([1/N], N))
-    particle_POMP.samples,particle_POMP.weights = samples, weights
-    return particle_POMP
+    POMP.samples,POMP.weights = samples, weights
+    return POMP
 end
 
 
@@ -71,14 +72,14 @@ G - observaiton function G(x,y,a) = P(X=x|y,a)
 y_t - observaiton
 a - action taken by decision maker
 """
-function filter!(particle_POMP,y_t, a)
-    samples, weights = particle_POMP.samples, particle_POMP.weights
-    G, T! = particle_POMP.G, particle_POMP.T!
+function filter!(POMP,y_t, a)
+    samples, weights = POMP.samples, POMP.weights
+    G, T! = POMP.G, POMP.T!
     samples = T!.(samples,a)
     w = log.(broadcast(x -> G(x,y_t,a), samples))
     weights += w
-    particle_POMP.samples, particle_POMP.weights = samples, weights
-    return particle_POMP
+    POMP.samples, POMP.weights = samples, weights
+    return POMP
 end
 
 
@@ -112,5 +113,17 @@ function init_samples!(POMP,N,cumulants)
     POMP.samples,POMP.weights=samples,weights
     return POMP
 end 
+
+
+"""
+B0 - a vector with cumulats 
+"""
+function simulated_joint_dynamics(x,a,POMP)
+    xt = POMP.T!(x,a) # take step
+    yt = POMP.G_sim(xt,a) # make observations
+    filter!(POMP,yt, a) # updated beliefs
+    reweight_samples!(POMP)
+    return xt
+end
 
 end # module 
