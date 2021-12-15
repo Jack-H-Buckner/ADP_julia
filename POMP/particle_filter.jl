@@ -41,7 +41,7 @@ mutable struct POMP
     N::Int
     G # likelihood function
     G_sim # simulated draw from likelihood 
-    T! # state transition simulations
+    T! # state transition simulations # returns rewards for POMDP
 end 
 
 
@@ -75,7 +75,7 @@ a - action taken by decision maker
 function filter!(POMP,y_t, a)
     samples, weights = POMP.samples, POMP.weights
     G, T! = POMP.G, POMP.T!
-    samples = T!.(samples,a)
+    samples = broadcast(x -> T!(x,a)[1], samples)
     w = log.(broadcast(x -> G(x,y_t,a), samples))
     weights += w
     POMP.samples, POMP.weights = samples, weights
@@ -97,10 +97,14 @@ function GC_samples(N, cumulants)
     samples = rand(d,N)
     y = (samples .-cumulants[1])./sqrt(cumulants[2])
     weights = repeat([1],N)
-    for i in 3:length(cumulants)
-        weights += cumulants[i]/(cumulants[2]^(i/2)*factorial(i)) * utils.hermite.(y,i)
-    end 
-    weights[weights .<= 0] .= 10^-12
+    if length(cumulants) > 2
+        for i in 3:length(cumulants)
+            weights += cumulants[i]/(cumulants[2]^(i/2)*factorial(i)) * utils.hermite.(y,i)
+        end
+    end
+    if any(weights .<= 0)
+        weights[weights .<= 0] .= 10^-12
+    end
     return samples, log.(weights./N)
 end
 
@@ -109,21 +113,29 @@ end
 reset the samples of a POMP model to 
 """
 function init_samples!(POMP,N,cumulants)
+    POMP.N = N
     samples,weights = GC_samples(N, cumulants)
     POMP.samples,POMP.weights=samples,weights
     return POMP
 end 
 
+function sample_x(POMP,N_samples)
+    samples, weights = POMP.samples,POMP.weights
+    N = length(samples)
+    inds = sample(collect(1:N),StatsBase.pweights(exp.(weights)),N_samples)
+    samples = samples[inds]
+    return samples
+end 
 
 """
 B0 - a vector with cumulats 
 """
 function simulated_joint_dynamics(x,a,POMP)
-    xt = POMP.T!(x,a) # take step
+    xt, Rt = POMP.T!(x,a) # take step
     yt = POMP.G_sim(xt,a) # make observations
     filter!(POMP,yt, a) # updated beliefs
     reweight_samples!(POMP)
-    return xt
+    return xt, Rt
 end
 
 end # module 
