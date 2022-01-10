@@ -25,46 +25,45 @@ function init_Q_data(N_sim, delta, s_dims, a_dims)
     N = N_sim/(1-delta) 
     N *= 1.02
     N = floor(Int,N)
-    s = zeros(N,s_dims)
-    a = zeros(N,a_dims)
+    s = repeat([[0.0]],N)
+    a = repeat([[0.0]],N)
     Q_ = zeros(N)
-    return data(N,1,s,a,Q_)
+    return data(N,0,s,a,Q_)
 end 
 
 
 function sample_data!(data, delta)
     M = floor(Int,data.M*delta)
-    print(M)
-    print(" ")
     if M == 0
-        M = 1
+    else
+        Nend = length(data.s[(M+1):end])
+        inds = StatsBase.sample(collect(1:data.M),M)
+        data.s[1:M] = data.s[inds]
+        data.s[(M+1):end] = repeat([[0.0]],Nend)
+        data.a[1:M] = data.a[inds]
+        data.a[(M+1):end] = repeat([[0.0]],Nend)
+        data.Q_[1:M] = data.Q_[inds]
+        data.Q_[(M+1):end] = repeat([0.0],Nend)
+        data.M = M
     end
-    inds = StatsBase.sample(collect(1:data.M),M)
-    data.s[1:M,:] = data.s[inds,:]
-    data.s[M:end,:] .= 0
-    data.a[1:M,:] = data.a[inds,:]
-    data.a[M:end,:] .= 0
-    data.Q_[1:M,:] = data.Q_[inds]
-    data.Q_[M:end,:] .= 0
-    data.M = M
 end 
 
 
 function add_data!(data, Q_, s, a)
     M_new = length(Q_)
     
-    print(data.M)
-    print(" ")
+
     if (M_new + data.M) < data.N
-        data.s[(data.M+1):(data.M+M_new),:] = s
-        data.a[(data.M+1):(data.M+M_new),:] = a
+ 
+        data.s[(data.M+1):(data.M+M_new)] = s
+      
+        data.a[(data.M+1):(data.M+M_new)] = a
         data.Q_[(data.M+1):(data.M+M_new)] = Q_
     else
         extra = (M_new + data.M) - data.N + 1
         data.N += extra
-        print(extra)
-        data.s = vcat(data.s ,zeros(extra, size(data.s)[2])) 
-        data.a = vcat(data.a ,zeros(extra, size(data.a)[2])) 
+        data.s = vcat(data.s ,zeros(extra, length(data.s))) 
+        data.a = vcat(data.a ,zeros(extra, length(data.a))) 
         data.Q_ = vcat(data.Q_, zeros(extra)) 
         data.s[(data.M+1):(data.M+M_new),:] = s
         data.a[(data.M+1):(data.M+M_new),:] = a
@@ -72,6 +71,16 @@ function add_data!(data, Q_, s, a)
     end 
     data.M = data.M+ M_new
 end
+
+
+function return_data!(data)
+    M = data.M
+    s = data.s[1:M]
+    a = data.a[1:M]
+    Q_ = data.Q_[1:M]
+    s,a,Q_
+end
+
 
 
 end # module
