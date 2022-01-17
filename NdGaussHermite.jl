@@ -1,5 +1,0 @@
-module NdGaussHermite
-
-
-
-end # module 

@@ -22,7 +22,7 @@ mutable struct unscentedFilter
     kappa::Float64
 end 
 
-function calcWeights(L, alpha, beta, kappa)
+function calc_weights(L, alpha, beta, kappa)
     lambda = alpha^2*(L-kappa)-L
     
     # set weights
@@ -64,7 +64,7 @@ end
 
 
 
-function sigmaPoints!(unscentedFilter)
+function sigma_points!(unscentedFilter)
     rootP = Array(LinearAlgebra.cholesky(sqrt((unscentedFilter.L+unscentedFilter.lambda))*unscentedFilter.P))
     for i in 1:(2*unscentedFilter.L+1)
         if i == 1
@@ -108,8 +108,8 @@ T - state transition function
 N - process noise covariance
 a - additional parameters for T, actions 
 """
-function timeUpdate!(unscentedFilter, T::Function, N::AbstractMatrix{Float64}, a::AbstractVector{Float64})
-    sigmaPoints!(unscentedFilter)
+function time_update!(unscentedFilter, T::Function, N::AbstractMatrix{Float64}, a::AbstractVector{Float64})
+    sigma_points!(unscentedFilter)
     Fx = broadcast(x -> T(x,a), unscentedFilter.X)
     unscentedFilter.x = sum_vec(Fx .* unscentedFilter.Wm)
     unscentedFilter.P = sum_mat(broadcast(v-> (v .- unscentedFilter.x)*transpose(v .- unscentedFilter.x), Fx).* unscentedFilter.Wc)
@@ -127,7 +127,7 @@ H - observation model (function of action a)
 R - observation noise covariance 
 a - 
 """
-function bayesUpdate!(unscentedFilter, yt::AbstractVector{Float64}, H::AbstractMatrix{Float64}, 
+function bayes_update!(unscentedFilter, yt::AbstractVector{Float64}, H::AbstractMatrix{Float64}, 
                       R::AbstractMatrix{Float64}, a::AbstractVector{Float64})
     zt = yt .- H*unscentedFilter.x
     St = H*unscentedFilter.P*transpose(H) .+ R 
@@ -137,7 +137,7 @@ function bayesUpdate!(unscentedFilter, yt::AbstractVector{Float64}, H::AbstractM
 end
 
 
-function bayesUpdate!(unscentedFilter, yt::AbstractVector{Float64}, H::AbstractMatrix{Float64}, 
+function bayes_update!(unscentedFilter, yt::AbstractVector{Float64}, H::AbstractMatrix{Float64}, 
                       R::AbstractVector{Float64}, a::AbstractVector{Float64})
     zt = yt .- H*unscentedFilter.x
     St = H*unscentedFilter.P*transpose(H) .+ R 
@@ -149,7 +149,7 @@ end
 
 
 # d = 1 
-function timeUpdate!(unscentedFilter, T::Function, N::AbstractVector{Float64}, a::AbstractVector{Float64})
+function time_update!(unscentedFilter, T::Function, N::AbstractVector{Float64}, a::AbstractVector{Float64})
     Fx = broadcast(x -> T(x,a), unscentedFilter.X)
     unscentedFilter.x = sum_vec(Fx .* unscentedFilter.Wm)
     unscentedFilter.P = sum_vec(broadcast(v-> (v .- unscentedFilter.x)*(v .- unscentedFilter.x), Fx).* unscentedFilter.Wc)
@@ -157,7 +157,7 @@ function timeUpdate!(unscentedFilter, T::Function, N::AbstractVector{Float64}, a
 end 
 
 
-function bayesUpdate!(unscentedFilter, zt::AbstractVector{Float64}, H::AbstractVector{Float64}, 
+function bayes_update!(unscentedFilter, zt::AbstractVector{Float64}, H::AbstractVector{Float64}, 
                       R::AbstractVector{Float64}, a::AbstractVector{Float64})
     yt = zt .- H*unscentedFilter.x
     St = H*unscentedFilter.P*H .+ R 

@@ -101,7 +101,7 @@ ParticleFilter - a ParticleFilter object
 T - state transition function  T(x,a)
 a - action taken by decision maker or other auxiliary paramters 
 """
-function timeUpdate!(ParticleFilter,T!,a)
+function time_update!(ParticleFilter,T!,a)
     broadcast(x -> T!(x,a),ParticleFilter.samples)
 end
 
@@ -113,7 +113,7 @@ G - Likelihood funciton G(y,x)
 yt - observation
 a - action or auxiliary paramters
 """
-function bayesUpdate!(ParticleFilter,G,yt,a)
+function bayes_update!(ParticleFilter,G,yt,a)
     ParticleFilter.weights .*= broadcast(x -> G(yt,x,a), ParticleFilter.samples)
     ParticleFilter.weights .*= 1/sum(ParticleFilter.weights) 
 end
@@ -129,7 +129,7 @@ ParticleFilter - The particle filter object to update
 T - hidden state transition function
 f - likelihood of 
 """
-function timeUpdate!(ParticleFilter,T,f, x0::AbstractVector{Float64}, xt::AbstractVector{Float64},a)
+function time_update!(ParticleFilter,T,f, x0::AbstractVector{Float64}, xt::AbstractVector{Float64},a)
     broadcast(H -> T!(H,x0,a),ParticleFilter.samples) # simulate time step of unobserved states 
     ParticleFilter.weights .*= broadcast(H -> f(xt,H,x0,a), ParticleFilter.samples) # weight samples to account for observed state
     ParticleFilter.weights .*= 1/sum(ParticleFilter.weights) # normalize weigths

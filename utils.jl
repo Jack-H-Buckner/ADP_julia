@@ -12,6 +12,16 @@ function hermite(x,degree)
     end 
 end 
 
+function sum_mat(x)
+    cols, rows = size(x[1])
+    n = length(x)
+    acc = zeros(cols, rows)
+    for i in 1:n
+        acc .+= x[i]
+    end
+    return acc
+end
+
 """
 computes cumulats given  weighted sample 
 """

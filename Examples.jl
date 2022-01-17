@@ -29,7 +29,7 @@ pars[7] - Distribution d_catch probability of catch
 pars[8] - Distribution g_yx probability of observation log_y_t given log_x_t
 pars[9] - Float64 weight_catch statistical weight of fisheries dependent data 
 """
-function partiallyObservedFishery_T!(x::AbstractVector{Float64},f::AbstractVector{Float64},pars)
+function partially_observed_fishery_T!(x::AbstractVector{Float64},f::AbstractVector{Float64},pars)
     nu = rand(pars[10],1)[1]
     x .= exp(x[1])*exp(-pars[1]-f[1]+nu)
     x .= x[1]+ pars[2]*x[1]*exp(rand(pars[6],1)[1])/(1+pars[3]*x[1])
@@ -50,7 +50,7 @@ pars[7] - Distribution d_catch probability of catch
 pars[8] - Distribution g_yx probability of observation log_y_t given log_x_t
 pars[9] - Float64 weight_catch statistical weight of fisheries dependent data 
 """
-function partiallyObservedFishery_R!(x,f,pars)
+function partially_observed_fishery_R!(x,f,pars)
     x = x[1]
     x = exp(x)
     m = pars[1]
@@ -63,7 +63,7 @@ end
 """
 log likelihood of x given 
 """
-function partiallyObservedFishery_G(x,y,f,pars)
+function partially_observed_fishery_G(x,y,f,pars)
     log_Y_t, log_c_t = y[1], y[2]
     L_y = pdf.(pars[8], x[1] - log_Y_t)
     L_c = pdf.(pars[7], x[1] - (log_c_t - log(1-exp(-f[1]/(pars[1]+f[1])))))
@@ -75,7 +75,7 @@ end
 """
 log likelihood of x given 
 """
-function partiallyObservedFishery_G_sim(x,f,pars)
+function partially_observed_fishery_G_sim(x,f,pars)
     m = pars[1]
     x = x[1]
     f = f[1]
@@ -115,7 +115,7 @@ deterministic component of fishery model
 - f fishing mortality rate
 - pars paramters including [1] ntrual mortality, [2] density dependence 
 """
-function unknownGrowthRate_T!(x::AbstractVector{Float64},f::AbstractVector{Float64},pars)
+function unknown_growth_rate_T!(x::AbstractVector{Float64},f::AbstractVector{Float64},pars)
     m = pars[1]
     a = x[2]
     b = pars[2]
@@ -132,7 +132,7 @@ deterministic component of fishery model
 - f fishing mortality rate
 - pars paramters including [1] ntrual mortality, [2] density dependence 
 """
-function unknownGrowthRate_T(x::AbstractVector{Float64},f::AbstractVector{Float64},pars)
+function unknown_growth_rate_T(x::AbstractVector{Float64},f::AbstractVector{Float64},pars)
     m = pars[1]
     a = x[2]
     b = pars[2]
@@ -144,6 +144,6 @@ Sigma_N = [0.01 0.0;
      0.0 0.0001] # process noise
 
 H = [1.0 0.0] # measurement model 
-Sigma_O = [1.0] # observation noise 
+Sigma_O = [0.05] # observation noise 
 
 end # module 
