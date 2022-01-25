@@ -1,50 +1,15 @@
 """
-useful funcitons
+utils
+
+defines some basic machinery used in both the tensor product and OLS_chebyshev
+files. 
+
+T(x,n) - degree n chebyshev polynomial 
+T_alpha_i(alpha_i,x) - product of alpha_ith degree polynomial evalueated at x[i]
+T_alpha(x,alpha, coefs)- Tensor product chebushex polynomial evaluated at x
+
 """
 module utils
-phi(y) = exp(-1/2*y^2)/sqrt(2*pi)
-
-function hermite(x,degree)
-    if degree == 4
-        return x^4 - 6x^2 + 3
-    elseif degree == 3
-        return x^3 - 3*x
-    end 
-end 
-
-function sum_mat(x)
-    cols, rows = size(x[1])
-    n = length(x)
-    acc = zeros(cols, rows)
-    for i in 1:n
-        acc .+= x[i]
-    end
-    return acc
-end
-
-"""
-computes cumulats given  weighted sample 
-"""
-function cumulant(sample, weights, degree)
-    @assert degree < 5
-    if degree == 1
-        return sum(sample .* weights)
-    elseif degree ==2
-        mu = sum(sample .* weights)
-        return sum((sample .- mu).^2 .* weights )
-    elseif degree ==3
-        mu = sum(sample .* weights)
-        return sum((sample .- mu).^3 .* weights )
-    elseif degree ==4
-        mu = sum(sample .* weights)
-        return sum((sample .- mu).^4 .* weights ) - 3*cumulant(sample, weights, 2)^2
-    end 
-end 
-
-
-
-### tools for chebyshev polynomials
-
 
 
 # the nth degree chebyshev polynomial
@@ -92,7 +57,6 @@ function collect_alpha(m,d)
 end
     
 
-    
 # collect z grid 
 # creates and array of that stores
 # the nodes for each dimension 
@@ -115,33 +79,6 @@ function collect_z(m,d)
         z_array = Iterators.product(z,z,z,z,z,z,z)
     elseif d == 8
         z_array = Iterators.product(z,z,z,z,z,z,z) 
-    end
-    return collect(z_array)
-end
-    
-    
-    
-# collect z grid 
-# creates and array of that stores
-# the nodes for each dimension 
-function collect_nodes(nodes)
-    d = size(nodes)[2]
-    if d == 1
-        z_array = z
-    elseif d == 2
-        z_array = Iterators.product(nodes[:,1],nodes[:,2])  
-    elseif d == 3
-        z_array = Iterators.product(nodes[:,1],nodes[:,2],nodes[:,3]) 
-    elseif d == 4
-        z_array = Iterators.product(nodes[:,1],nodes[:,2],nodes[:,3],nodes[:,4])
-    elseif d == 5
-        z_array = Iterators.product(nodes[:,1],nodes[:,2],nodes[:,3],nodes[:,4],nodes[:,5]) 
-    elseif d == 6
-        z_array = Iterators.product(nodes[:,1],nodes[:,2],nodes[:,3],nodes[:,4],nodes[:,5],nodes[:,6]) 
-    elseif d == 7
-        z_array = Iterators.product(nodes[:,1],nodes[:,2],nodes[:,3],nodes[:,4],nodes[:,5],nodes[:,6],nodes[:,7]) 
-    elseif d == 8
-        z_array = Iterators.product(nodes[:,1],nodes[:,2],nodes[:,3],nodes[:,4],nodes[:,5],nodes[:,6],nodes[:,7],nodes[:,8]) 
     end
     return collect(z_array)
 end
@@ -172,6 +109,5 @@ function regression_matrix(x, polynomial)
     m = mapslices(f_x, z; dims=2)
     return  m
 end 
-    
 
-end
+end # module 

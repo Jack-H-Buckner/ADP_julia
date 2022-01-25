@@ -103,6 +103,54 @@ function nodes_grid(nodes, weights, dims)
 end 
 
 
+function nodes_grid(nodes, dims)
+    @assert dims in [1,2,3,4]
+    
+    if dims == 1
+        return nodes
+    elseif dims ==2
+        n = length(nodes)
+        nodes_vec = broadcast(i -> zeros(dims), 1:n^2)
+        acc = 0
+        for i in 1:n
+            for j in 1:n
+                acc += 1
+                nodes_vec[acc] .= [nodes[i], nodes[j]]
+            end
+        end 
+        return nodes_vec
+    elseif dims == 3
+        n = length(nodes)
+        nodes_vec = broadcast(i -> zeros(dims), 1:n^dims)
+        acc = 0
+        for i in 1:n
+            for j in 1:n
+                for k in 1:n
+                    acc += 1
+                    nodes_vec[acc] .= [nodes[i], nodes[j], nodes[k]]
+                end
+            end
+        end 
+        return nodes_vec
+    elseif dims == 4
+        n = length(nodes)
+        nodes_vec = broadcast(i -> zeros(dims), 1:n^dims)
+        acc = 0
+        for i in 1:n
+            for j in 1:n
+                for k in 1:n
+                    for l in 1:n
+                        acc += 1
+                        nodes_vec[acc] .= [nodes[i], nodes[j], nodes[k], nodes[l]]
+                    end
+                end
+            end
+        end 
+        return nodes_vec
+    end 
+    
+end 
+
 
 function init(m::Int64,mu::AbstractVector{Float64},Cov::AbstractMatrix{Float64})
     dims = size(Cov)[1]
@@ -166,18 +214,20 @@ function init_mutable(m::Int64,mu::AbstractVector{Float64},Cov::AbstractMatrix{F
     nodes, weights = FastGaussQuadrature.gausshermite(m)
     weights = weights .* (2*pi)^(-1/2).*exp.((nodes.^2)./2)
     nodes, weights = nodes_grid(nodes, weights, dims)
-    
-    nodes = broadcast(x -> [x[1],x[2]], nodes)
-
+    if dims > 1
+        nodes = broadcast(x -> broadcast(v -> v, x), nodes)
+    elseif dims ==1
+        nodes = broadcast(x -> [x], nodes)
+    end 
 
     # spectral decomposition
     estuff = eigen(Cov)
-    rV = sqrt.(1.0*Matrix(I,2,2).*estuff.values)
+    rV = sqrt.(1.0*Matrix(I,dims,dims).*estuff.values)
     S = real.(estuff.vectors)
 
     # rotation matrix
     R = planar_rotation(dims,pi/4)
-
+    
     # transform and plot 
     nodes = broadcast(x -> S*rV*R*x.+mu, nodes)
     
@@ -194,12 +244,16 @@ function init_mutable(m::Int64,mu::AbstractVector{Float64},Cov::AbstractMatrix{F
     weights = weights .* (2*pi)^(-1/2).*exp.((nodes.^2)./2)
     nodes, weights = nodes_grid(nodes, weights, dims)
     
-    nodes = broadcast(x -> [x[1],x[2]], nodes)
+    if dims > 1
+        nodes = broadcast(x -> broadcast(v -> v, x), nodes)
+    elseif dims ==1
+        nodes = broadcast(x -> [x], nodes)
+    end 
 
     
     # spectral decomposition
     estuff = eigen(Cov)
-    rV = sqrt.(1.0*Matrix(I,2,2).*estuff.values)
+    rV = sqrt.(1.0*Matrix(I,dims,dims).*estuff.values)
     S = real.(estuff.vectors)
 
     # rotation matrix
@@ -219,10 +273,19 @@ Updates the transformation of the nodes with a new covariance matrix
 """
 function update!(mutableQuadrature, mu::AbstractVector{Float64}, Cov::AbstractMatrix{Float64})
 
+    nodes= FastGaussQuadrature.gausshermite(mutableQuadrature.m)[1]
     
-    # spectral decomposition
+
+    nodes  = nodes_grid(nodes, mutableQuadrature.dims)
+    
+    if mutableQuadrature.dims > 1
+        mutableQuadrature.nodes .= broadcast(x -> broadcast(v -> v, x), nodes)
+    else
+        mutableQuadrature.nodes .= broadcast(x -> [x], nodes)
+    end
+    #spectral decomposition
     estuff = eigen(Cov)
-    rV = sqrt.(1.0*Matrix(I,2,2).*estuff.values)
+    rV = sqrt.(1.0*Matrix(I,mutableQuadrature.dims,mutableQuadrature.dims).*estuff.values)
     S = real.(estuff.vectors)
 
     # rotation matrix
@@ -246,7 +309,7 @@ function update_bellman!(mutableQuadrature, x_cov)
     
     # spectral decomposition
     estuff = eigen(mutableQuadrature.Cov)
-    rV = sqrt.(1.0*Matrix(I,2,2).*estuff.values)
+    rV = sqrt.(1.0*Matrix(I,dims,dims).*estuff.values)
     S = real.(estuff.vectors)
 
     # rotation matrix
@@ -263,11 +326,11 @@ computes the expecctation of a gausian random variable with mean mu and covarian
 with respect to a function f
 """
 function expected_value(f::Function, quadrature)#
-    return sum(f.(broadcast(x -> x, quadrature.nodes)).*quadrature.weights)#/sqrt(pi^quadrature.dims)
+    return sum(f.(broadcast(x -> x, quadrature.nodes)).*quadrature.weights)
 end 
 
 function expected_value(f::Function, quadrature)#::mutableQuadrature
-    return sum(f.(broadcast(x -> x, quadrature.nodes)).*quadrature.weights)#/sqrt(pi^quadrature.dims)
+    return sum(f.(broadcast(x -> x, quadrature.nodes)).*quadrature.weights)
 end 
 
 

@@ -40,9 +40,10 @@ H - observation model, matrx of function
 """
 function propogate_observation_model(x_hat::AbstractVector{Float64},x_cov::AbstractMatrix{Float64},
                                      H::Function,Quad)
-    MvGaussHermite.update!(Quad, x_cov)
-    y_hat = MvGaussHermite.expected_value(H, Quad, x_hat)
-    y_cov = utils.sum_mat(broadcast(v-> (H(v.+x_hat).-y_hat)*transpose(H(v.+x_hat).-y_hat), Quad.nodes).* Quad.weights)
+    MvGaussHermite.update!(Quad, x_hat, x_cov)
+    vals = H.(Quad.nodes)
+    y_hat = sum(vals.*Quad.weights)
+    y_cov = sum(broadcast(v-> (v.-y_hat)*transpose(v.-y_hat), vals).* Quad.weights)
     return y_hat, y_cov
 end 
 
@@ -55,49 +56,118 @@ function propogate_observation_model(x_hat::AbstractVector{Float64},x_cov::Abstr
 end 
 
 
-# struct POMDP_KalmanFilter{T} 
-#     T!::Function # deterministic state transition function T(x,a) = x'
-#     T::Function
-#     actions::T
-#     R::Function # reward function R(x,a,epsilon) = r (epsilon is a gausian random variable with vocariance Sigma_N)
-#     H::Function # observaiton function 
-#     Sigma_N::AbstractMatrix{Float64} # process noise covariance  
-#     Sigma_O::AbstractMatrix{Float64} # observaiton noise covariance 
-#     d_proc::Distribution{Multivariate,Continuous}
-#     d_obs::Distribution{Multivariate,Continuous}
-#     T_sim!::Function # simulates stochastic state transitions T(x,a) = x' + epsilon
-#     G::Function # likelihood of observations yt - xt ~ N(0, Sigma_O) 
-#     G_sim::Function # yt = xt + epsilon where epsilon ~ N(0, Sigma_O)
-#     delta::Float64 # discount factor 
-# end 
+"""
+    new_state(y, x_hat, x_cov,H,Sigma_O)
+
+computes measurement update using KalmanFilters.jl 
+"""
+function new_state(y::AbstractVector{Float64}, x_hat::AbstractVector{Float64},
+                    x_cov::AbstractMatrix{Float64},H::AbstractMatrix{Float64},
+                    Sigma_O::AbstractMatrix{Float64})
+    
+    mu = KalmanFilters.measurement_update(x_hat, x_cov,y,H,Sigma_O)
+    x_hat, x_cov = KalmanFilters.get_state(mu), KalmanFilters.get_covariance(mu)
+    
+    return x_hat, x_cov
+end 
+
+
+"""
+    new_state(y, x_hat, x_cov,H,Sigma_O)
+
+computes measurement update using KalmanFilters.jl 
+"""
+function new_state(y::AbstractVector{Float64}, x_hat::AbstractVector{Float64},
+                    x_cov::AbstractMatrix{Float64},H::Function,
+                    Sigma_O::AbstractMatrix{Float64})
+    
+    mu = KalmanFilters.measurement_update(x_hat, x_cov,y,H,Sigma_O)
+    x_hat, x_cov = KalmanFilters.get_state(mu), KalmanFilters.get_covariance(mu)
+    
+    return x_hat, x_cov
+end 
+
+"""
+    reshape_state(x_hat, x_cov)
+
+reshapes the beleif state represented by a mean vector and covariance matrix to a 
+vector of length n + n(n+1)/2
+"""
+function reshape_state(x_hat::AbstractVector{Float64}, x_cov::AbstractMatrix{Float64})
+    n = length(x_hat)
+    v = zeros(floor(Int,n + n*(n+1)/2))
+    v[1:n] .= x_hat
+    k = n
+    for i in 1:n
+        for j in 1:n
+            if j <= i
+                k += 1
+                v[k] = x_cov[i,j]
+            end 
+        end
+    end 
+    return v
+end 
+
+
+"""
+    reshape_state(B)
+
+Maps a vector to a mean and covariance 
+"""
+function reshape_state(B::AbstractVector{Float64})
+    d = floor(Int, -3/2+sqrt(9/4+2*length(B)))
+    x_hat = B[1:d]
+    x_cov = zeros(d,d)
+    k = d
+    for i in 1:d
+        for j in 1:d
+            if j == i
+                k += 1
+                x_cov[i,j] = B[k] 
+            elseif j < i
+                k += 1
+                x_cov[i,j],x_cov[j,i] = B[k],B[k]  
+            end 
+        end
+    end 
+    return x_hat, x_cov
+end 
+
+
 
 """
     integrate_bellman(x_hat, x_cov, a, V, POMDP)
 
-x_hat - mean state estimate
-x_cov - mean covariance estimate
+s - state vector length n + n*(n+1)/2
 a - action taken
 V - value function (takes state )
 POMDP - 
 """
-function integrate_bellman(x_hat::AbstractVector{Float64}, x_cov::AbstractMatrix{Flaot64}, 
-                            a::AbstractVector{Float64}, V::Function, POMDP, Quad_x, Quad_y)
+function expectation(s::AbstractVector{Float64}, a::AbstractVector{Float64}, 
+                            V::Function, POMDP, Quad_x, Quad_y)
+    
+    # convert state vector to mean and covariance 
+    x_hat, x_cov = reshape_state(s)
     
     ### time update 
     tu = KalmanFilters.time_update(x_hat,x_cov, x ->POMDP.T(x,a),  POMDP.Sigma_N)
     x_hat, x_cov = KalmanFilters.get_state(tu), KalmanFilters.get_covariance(tu)
-    MvGaussHermite.update!(Quad_x,x_hat,x_cov)
+    
     #observaton quadrature nodes 
     H = x -> POMDP.H(x,a) # define measurment function 
     y_hat, y_cov = propogate_observation_model(x_hat, x_cov,H,Quad_x)
+    
+    y_cov .+= POMDP.Sigma_O
     MvGaussHermite.update!(Quad_y,y_hat,y_cov)
     
     
     ### new states 
-    new_states = broadcast(y -> KalmanFilters.measurement_update(x_hat, x_cov,y,
-                    x ->  unknownGrowthRate.H(x,[0.1]),unknownGrowthRate.Sigma_O), Quad_y.nodes)
+    new_states = broadcast(y -> new_state(y, x_hat,x_cov, H, POMDP.Sigma_O), Quad_y.nodes)
+    new_states = broadcast(x -> reshape_state(x[1],x[2]),new_states)
     
-    
+    vals = broadcast(x -> V(x, a), new_states)
+    return sum(vals .* Quad_y.weights)
 end 
 
 end # module 
