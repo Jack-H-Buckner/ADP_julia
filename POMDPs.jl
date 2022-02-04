@@ -84,7 +84,7 @@ struct POMDP_KalmanFilter{T}
     T!::Function # deterministic state transition function T(x,a) = x'
     T::Function
     actions::T
-    R::Function # reward function R(x,a,epsilon) = r (epsilon is a gausian random variable with vocariance Sigma_N)
+    R::Function # reward function R(x,a) = r 
     H::Function # observaiton function 
     Sigma_N::AbstractMatrix{Float64} # process noise covariance  
     Sigma_O::AbstractMatrix{Float64} # observaiton noise covariance 

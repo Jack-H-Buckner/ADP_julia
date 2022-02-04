@@ -36,6 +36,7 @@ strings under the algorithm and warnings
 mutable struct kalmanFilterSolver{T1,T2,T3}
     POMDP::POMDPs.POMDP_KalmanFilter{T1}
     bellmanIntermidiate::BellmanOpperators.bellmanIntermidiate
+    obsBellmanIntermidiate::BellmanOpperators.obsBellmanIntermidiate
     valueFunction::{T2}
     policyFunction::{T3}
     algorithm::String
@@ -87,14 +88,13 @@ function init(T!::Function,
     
     POMDP = POMDPs.init(T!, T, R, H,Sigma_N, Sigma_O, delta, n_dims)
     # set intermidiate
-    a0 = (upper_a .+ lower)./2 
     dims_x = size(Sigma_N)[1]
     dims_y = size(Sigma_O)[1]
     m_Quad_x = 5 
     m_Quad_y = 5
-    
+    m_Quad = 10
     bellmanIntermidiate = BellmanOpperators.init_bellmanIntermidiate(a0,dims_x,dims_y,m_Quad_x,m_Quad_y)
-    
+    obsBellmanIntermidiate = BellmanOpperators.init_obsBellmanIntermidiate(dims_x,m_Quad, POMDP)
     # set value function 
     m = 10
     valueFunction = ValueFunctions.init_interpolation(lower_s,upper_s,m)
@@ -106,6 +106,18 @@ end
 function VFI(kalmanFilterSolver)
     
 end 
+
+
+
+
+
+##############################################
+### Bellman opperator for observed systems ###
+##############################################
+
+
+
+
 
 
 end # module 
