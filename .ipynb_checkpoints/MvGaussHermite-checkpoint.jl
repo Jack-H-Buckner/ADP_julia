@@ -273,15 +273,14 @@ Updates the transformation of the nodes with a new covariance matrix
 """
 function update!(mutableQuadrature, mu::AbstractVector{Float64}, Cov::AbstractMatrix{Float64})
 
-    nodes= FastGaussQuadrature.gausshermite(mutableQuadrature.m)[1]
-    
-
-    nodes  = nodes_grid(nodes, mutableQuadrature.dims)
+    #nodes  = nodes_grid(nodes, mutableQuadrature.dims)
     
     if mutableQuadrature.dims > 1
-        mutableQuadrature.nodes .= broadcast(x -> broadcast(v -> v, x), nodes)
+        mutableQuadrature.nodes .= broadcast(x -> broadcast(v -> v, x),
+                            nodes_grid(FastGaussQuadrature.gausshermite(mutableQuadrature.m)[1], mutableQuadrature.dims))
     else
-        mutableQuadrature.nodes .= broadcast(x -> [x], nodes)
+        mutableQuadrature.nodes .= broadcast(x -> [x], 
+                                nodes_grid(FastGaussQuadrature.gausshermite(mutableQuadrature.m)[1], mutableQuadrature.dims))
     end
     #spectral decomposition
     estuff = eigen(Cov)

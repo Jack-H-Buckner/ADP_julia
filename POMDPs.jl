@@ -147,4 +147,6 @@ function init(T!::Function, T::Function,R::Function, H::Function,
     return POMDP_KalmanFilter{discreteActions}(T!, T, actions,R, H, Sigma_N, Sigma_O, d_proc, d_obs, T_sim!, G, G_sim, delta)  
 end 
 
+
+
 end # module 

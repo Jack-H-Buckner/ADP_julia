@@ -147,4 +147,14 @@ function init(T!::Function, T::Function,R::Function, H::Function,
     return POMDP_KalmanFilter{discreteActions}(T!, T, actions,R, H, Sigma_N, Sigma_O, d_proc, d_obs, T_sim!, G, G_sim, delta)  
 end 
 
+
+function a0(actions::Tuple{AbstractVector{Float64},AbstractVector{Float64}})
+    dims = length(actions[1])
+    a0 = zeros(dims)
+    for i in 1:dims
+        a0[i] = (actions[1][i] + actions[2][i])/2
+    end 
+end 
+
+
 end # module 

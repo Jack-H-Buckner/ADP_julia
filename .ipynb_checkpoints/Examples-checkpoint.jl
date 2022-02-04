@@ -119,7 +119,7 @@ function unknown_growth_rate_T!(x::AbstractVector{Float64},f::AbstractVector{Flo
     m = pars[1]
     a = x[2]
     b = pars[2]
-    x[1] = log((1-m)*exp(x[1] -m - f[1]) + a*exp(x[1])/(1+b*exp(x[1])))
+    x[1] = log((1-m)*exp(x[1] -m - f[1]) + exp(a)*exp(x[1])/(1+b*exp(x[1])))
     return x
 end
 
@@ -136,7 +136,7 @@ function unknown_growth_rate_T(x::AbstractVector{Float64},f::AbstractVector{Floa
     m = pars[1]
     a = x[2]
     b = pars[2]
-    x1 = log((1-m)*exp(x[1] -m - f[1]) + a*exp(x[1])/(1+b*exp(x[1])))
+    x1 = log((1-m)*exp(x[1] -m - f[1]) + exp(a)*exp(x[1])/(1+b*exp(x[1])))
     return [x1,a]
 end
 

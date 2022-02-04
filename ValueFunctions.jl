@@ -77,12 +77,9 @@ end
 define method to call 
 """
 function (p::chebyshevInterpolation)(x)
-    a = p.a
-    b = p.b   
-    
     
     # scale x values to (-1,1)
-    z = (x.-a).*2 ./(b.-a) .- 1 #broadcast(x -> (x.-a).*2 ./(b.-a) .- 1,x)
+    z = (x.-p.a).*2 ./(p.b.-p.a) .- 1 #broadcast(x -> (x.-a).*2 ./(b.-a) .- 1,x)
     
     # extrapolation
     z[z .> 1.0] .= 0.9999999
@@ -159,22 +156,109 @@ end
 
 
 function (p::chebyshevPolynomial)(x)
-    a = p.a
-    b = p.b 
-    if p.extrapolate
-        x = broadcast(v -> bound!(v,p), x)
-    else
-        @assert all(broadcast(v -> bound_error(v,p), x))
-    end 
-    z = broadcast(x -> (x.-a).*2 ./(b.-a) .- 1,x)
+
+    x = broadcast(v -> bound!(v,p), x)
+
+    z = broadcast(x -> (x.-p.a).*2 ./(p.b.-p.a) .- 1,x)
     v = broadcast(x -> utils.T_alpha(x,p.alpha, p.coeficents),z)
     return v
 end 
         
         
 
+
+    
 #############################
 ###     other methods     ###
 #############################  
     
+# define a data structure to save 
+# informaiton for interpolation
+mutable struct guasianBeleifsInterp2d
+
+    lower_mu::AbstractVector{Float64} # lower bounds
+    upper_mu::AbstractVector{Float64} # upper bounds
+    
+    upper_sigma::AbstractVector{Float64}
+    
+    covBound::Float64
+    m::Int64
+    nodes::AbstractArray{Tuple{AbstractVector{Float64}, AbstractMatrix{Float64}}}
+    chebyshevInterpolation
+end  
+
+    
+    
+function inv_map_node!(mu::AbstractVector{Float64}, cov::AbstractMatrix{Float64}, z, lower_mu, upper_mu, upper_sigma, covBound)
+    mu .= (z[1:2].+1) .* (upper_mu.-lower_mu)./2.0 .+lower_mu
+    cov[1,1] = (z[3].+1)* (upper_sigma[1])/2.0 
+    cov[2,2] = (z[4].+1)* (upper_sigma[2])/2.0 
+    covBound = sqrt(cov[1,1]*cov[2,2]) - 0.000001
+    cov[1,2] = covBound*(z[5]+1)/2.0 
+    cov[2,1] = covBound*(z[5]+1)/2.0
+end    
+
+"""
+    init_guasianBeleifsInterp2d(m, lower_mu, upper_mu)
+
+Initializes the interpolation for a POMDP with 2d gausian beleif state
+"""
+function init_guasianBeleifsInterp2d(m, lower_mu, upper_mu)
+    @assert m < 15
+    range = upper_mu .- lower_mu
+    upper_sigma = range./3
+    
+    covBound = sqrt(upper_sigma[1]*upper_sigma[2])
+    a = repeat([-1.0],5)
+    b = repeat([1.0],5)
+    interp = init_interpolation(a,b,m)
+    
+    nodes = broadcast( i-> (zeros(2),zeros(2,2)),1:m^5)
+    
+    broadcast(i -> inv_map_node!(nodes[i][1],nodes[i][2], interp.grid[i],lower_mu, upper_mu, upper_sigma, covBound), 1:m^5)
+    
+    guasianBeleifsInterp2d(lower_mu,upper_mu,upper_sigma,covBound,m,nodes,interp)
+end 
+
+"""
+maps a mean and covariance matrix to (-1,1)^5
+    
+Over writes the state vector supplied 
+"""
+function map_node!(z::AbstractVector{Float64}, mu::AbstractVector{Float64}, cov::AbstractMatrix{Float64}, Binterp)
+    z[1:2] = (mu.-Binterp.lower_mu).*2 ./(Binterp.upper_mu.-Binterp.lower_mu) .- 1
+    z[3] = (cov[1,1] )*2 / (Binterp.upper_sigma[1]) - 1
+    z[4] = (cov[2,2] )*2 / (Binterp.upper_sigma[2]) - 1
+    Binterp.covBound = sqrt(n[3]*n[4]) - 0.000001
+    z[5] = cov[1,2] /Binterp.covBound
+    z[5] = 2.0*z[5] - 1.0
+end 
+    
+"""
+maps a point in (-1,1)^5 to a mean and covariance matrix
+    
+Over writes the mean and covariance supplied 
+"""
+function inv_map_node!(mu::AbstractVector{Float64}, cov::AbstractMatrix{Float64}, z::AbstractVector{Float64}, covBound)
+    mu .= (z[1:2].+1) .* (Binterp.upper_mu.-Binterp.lower_mu)./2.0 .+ Binterp.lower_mu
+    cov[1,1] = (z[3].+1)* (Binterp.upper_sigma[1])/2.0 
+    cov[2,2] = (z[4].+1)* (Binterp.upper_sigma[2])/2.0 
+    covBound = sqrt(cov[1,1]*cov[2,2]) - 0.000001
+    cov[1,2] = covBound*(z[5]+1)/2.0 
+    cov[2,1] = covBound*(z[5]+1)/2.0 
+end 
+        
+function (p!::guasianBeleifsInterp2d)(z,mu, cov)
+    
+    map_node!(z, mu, cov, p!)
+    
+    # extrapolation
+    z[z .> 1.0] .= 0.9999999
+    z[z .< -1.0] .= -0.9999999
+    
+    v = utils.T_alpha(z,p!.chebyshevInterpolation.alpha, p!.chebyshevInterpolation.coeficents) 
+    return v
+end
+    
+
 end 

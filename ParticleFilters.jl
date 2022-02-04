@@ -54,7 +54,6 @@ N - number of samples
 d - number of dimensions for samples 
 """
 function init(N::Int64,d::Int64)
-    print("Initalizing a standard particle filter")
     samples = broadcast(i->zeros(d),1:N)
     weights = repeat([1.0/N],N)
     return ParticleFilter(samples,weights,N,d)
@@ -68,7 +67,7 @@ end
 # end 
 
 function init(N::Int64,dH::Int64,dx::Int64)
-    print("Initalizing a particle filter for mixed observability processes")
+
     samples = broadcast(i->zeros(d),1:N)
     weights = repeat([1.0/N],N)
     return ParticleFilter(samples,weights,N,d)
@@ -116,6 +115,14 @@ a - action or auxiliary paramters
 function bayes_update!(ParticleFilter,G,yt,a)
     ParticleFilter.weights .*= broadcast(x -> G(yt,x,a), ParticleFilter.samples)
     ParticleFilter.weights .*= 1/sum(ParticleFilter.weights) 
+end
+
+function bayes_update(ParticleFilter,G,yt,a)
+    weights = ones(ParticleFilter.N)./ParticleFilter.N
+    #println(broadcast(x -> G(yt,x,a)[1], ParticleFilter.samples))
+    weights .*= broadcast(x -> G(yt,x,a)[1], ParticleFilter.samples)
+    weights .*= 1/sum(weights) 
+    return ParticleFilter.samples, weights 
 end
 
 
