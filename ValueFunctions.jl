@@ -90,6 +90,20 @@ function (p::chebyshevInterpolation)(x)
 end 
 
 
+
+function (p!::chebyshevInterpolation)(x)
+    # scale x values to (-1,1)
+    z = (x.-p!.a).*2 ./(p!.b.-p!.a) .- 1 #broadcast(x -> (x.-a).*2 ./(b.-a) .- 1,x)
+    
+    # extrapolation
+    z[z .> 1.0] .= 0.9999999
+    z[z .< -1.0] .= -0.9999999
+    
+    v = utils.T_alpha(z,p!.alpha, p!.coeficents) #broadcast(x -> utils.T_alpha(x,p.alpha, p.coeficents),z)
+    return v
+end 
+
+
 # regression model for ADP
 
 
@@ -229,7 +243,7 @@ function map_node!(z::AbstractVector{Float64}, mu::AbstractVector{Float64}, cov:
     z[1:2] = (mu.-Binterp.lower_mu).*2 ./(Binterp.upper_mu.-Binterp.lower_mu) .- 1
     z[3] = (cov[1,1] )*2 / (Binterp.upper_sigma[1]) - 1
     z[4] = (cov[2,2] )*2 / (Binterp.upper_sigma[2]) - 1
-    Binterp.covBound = sqrt(n[3]*n[4]) - 0.000001
+    Binterp.covBound = sqrt(z[3]*z[4]) - 0.000001
     z[5] = cov[1,2] /Binterp.covBound
     z[5] = 2.0*z[5] - 1.0
 end 
@@ -248,7 +262,7 @@ function inv_map_node!(mu::AbstractVector{Float64}, cov::AbstractMatrix{Float64}
     cov[2,1] = covBound*(z[5]+1)/2.0 
 end 
         
-function (p!::guasianBeleifsInterp2d)(z,mu, cov)
+function (p!::guasianBeleifsInterp2d)(z, mu, cov)
     
     map_node!(z, mu, cov, p!)
     
@@ -260,5 +274,64 @@ function (p!::guasianBeleifsInterp2d)(z,mu, cov)
     return v
 end
     
+    
+"""
+    update_guasianBeleifsInterp2d!(V,vals)
+
+V - guasianBeleifsInterp2d object
+vals - vector of new values with same length as nodes in interpolation 
+"""
+function update_guasianBeleifsInterp2d!(V,vals::AbstractVector{Float64})
+    update_interpolation!(V.chebyshevInterpolation, reshape(vals,V.m,V.m,V.m,V.m,V.m))
+end 
+    
+
+"""
+    adjGausianBeleifsInterp
+
+A value funciton object that is the sum of two parts. 
+The function maps a mean and covariance function 
+baseValue is a functon that 
+"""
+mutable struct adjGausianBeleifsInterp
+    baseValue::chebyshevInterpolation
+    uncertantyAdjustment::guasianBeleifsInterp2d
+    m1::Int64
+    m2::Int64
+end 
+    
+    
+function init_adjGausianBeleifsInterp(m1, m2, lower_mu, upper_mu)
+    baseValue = init_interpolation(lower_mu, upper_mu, m1)
+    uncertantyAdjustment = init_guasianBeleifsInterp2d(m2, lower_mu, upper_mu)
+    adjGausianBeleifsInterp(baseValue,uncertantyAdjustment,m1,m2)
+end 
+    
+function (V!::adjGausianBeleifsInterp)(z,mu, cov)
+    return V!.baseValue(mu) + V!.uncertantyAdjustment(z,mu,cov)
+end 
+    
+
+"""
+    update_base()
+
+V - adjGausianBeleifsInterp
+values - vector of length V.m1^2 
+"""
+function update_base!(V,vals)
+    new_values = reshape(vals, V.m1, V.m1)
+    update_interpolation!(V.baseValue, new_values)
+end
+
+"""
+    update_adjustment(V, vals)
+
+
+"""
+function update_adjustment!(V, vals)
+    vals_up = vals .- broadcast(i -> V.baseValue(V.uncertantyAdjustment.nodes[i][1]),
+            1:length(V.uncertantyAdjustment.nodes))
+    update_guasianBeleifsInterp2d!(V.uncertantyAdjustment,vals_up)
+end
 
 end 

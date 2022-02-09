@@ -33,12 +33,12 @@ are used to solve the object also stores data on the performance of the algorith
 strings under the algorithm and warnings 
 
 """
-mutable struct kalmanFilterSolver{T1,T2,T3}
-    POMDP::POMDPs.POMDP_KalmanFilter{T1}
+mutable struct kalmanFilterSolver
+    POMDP
     bellmanIntermidiate::BellmanOpperators.bellmanIntermidiate
     obsBellmanIntermidiate::BellmanOpperators.obsBellmanIntermidiate
-    valueFunction::{T2}
-    policyFunction::{T3}
+    valueFunction
+    policyFunction
     algorithm::String
     warnngs::String
 end 
@@ -95,18 +95,10 @@ function init(T!::Function,
     m_Quad = 10
     bellmanIntermidiate = BellmanOpperators.init_bellmanIntermidiate(a0,dims_x,dims_y,m_Quad_x,m_Quad_y)
     obsBellmanIntermidiate = BellmanOpperators.init_obsBellmanIntermidiate(dims_x,m_Quad, POMDP)
-    # set value function 
-    m = 10
-    valueFunction = ValueFunctions.init_interpolation(lower_s,upper_s,m)
+    # default to 30 grid point for observed component and 7 for uncertinaty adjustment
+    valueFunction = ValueFunctions.init_adjGausianBeleifsInterp(30, 5, lower_mu, upper_mu)
+    kalmanFilterSolver(POMDP,bellmanIntermidiate,obsBellmanIntermidiate, "Two stage VFI", "Initialized")
 end 
-
-
-
-
-function VFI(kalmanFilterSolver)
-    
-end 
-
 
 
 
@@ -117,7 +109,15 @@ end
 
 
 
-
+function solve_observed(kalmanFilterSolver)
+    tol = 10^-3
+    max_iter = 10^3
+    test = 1
+    while (test < tol) && (iter < max_iter)
+        
+    end 
+    obs_Bellman!(v,intermidiate,V::Function, POMDP)
+end
 
 
 end # module 

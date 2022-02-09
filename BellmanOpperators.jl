@@ -484,7 +484,7 @@ end
 
 function init_obsBellmanIntermidiate(dims_x,m_Quad, POMDP)
     x = zeros(dims_x)
-    Quad =  MvGaussHermite.init_mutable(m_Quad_x,x,POMDP.Sigma_N)
+    Quad =  MvGaussHermite.init_mutable(m_Quad,x,POMDP.Sigma_N)
     values = zeros(Quad.n)
     return obsBellmanIntermidiate(x,Quad,values)
 end 
