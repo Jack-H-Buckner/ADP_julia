@@ -47,9 +47,6 @@ opperations to be done in place which should increase performance.
 
 """
 mutable struct bellmanIntermidiate
-    s::AbstractVector{Float64}
-    a::AbstractVector{Float64}
-    a0::AbstractVector{Float64}
     
     Quad_x::MvGaussHermite.mutableQuadrature
     Quad_y::MvGaussHermite.mutableQuadrature
@@ -65,9 +62,8 @@ mutable struct bellmanIntermidiate
 end 
 
 
-function init_bellmanIntermidiate(a0, dims_s, dims_y, m_Quad_x, m_Quad_y)
-    s = zeros(floor(Int,dims_s + dims_s*(dims_s+1)/2))
-    a = a0
+function init_bellmanIntermidiate(dims_s, dims_y, m_Quad_x, m_Quad_y)
+    
     x_hat = zeros(dims_s)
     x_cov = 1.0*Matrix(I,dims_s,dims_s)
     y_hat = zeros(dims_y)
@@ -86,7 +82,7 @@ function init_bellmanIntermidiate(a0, dims_s, dims_y, m_Quad_x, m_Quad_y)
     end 
     
     
-    return bellmanIntermidiate(s,a,a0,Quad_x,Quad_y,x_hat,x_cov,y_hat,y_cov,new_states_mat,new_states_vec,vals)
+    return bellmanIntermidiate(Quad_x,Quad_y,x_hat,x_cov,y_hat,y_cov,new_states_mat,new_states_vec,vals)
     
 end 
 
@@ -208,17 +204,15 @@ end
 """
     value_expectation!(s,a,POMDP,Quad_X, Quad_y)
 
-data - inplace object
+data - inplace object, update x_hat and x_cov to evaluate at a given grid point 
 a - action
 POMDP - problem
 V - value function 
 
 """
-function value_expectation!(data, a, obs, POMDP, V)
+function value_expectation!(data,a, obs, POMDP, V)
     
-    # convert state vector to mean and covariance 
-    data.x_hat, data.x_cov = reshape_state(data.s) 
-    
+    # convert state vector to mean and covariance     
     tu = KalmanFilters.time_update(data.x_hat, data.x_cov, x ->POMDP.T(x,a),  POMDP.Sigma_N)
     data.x_hat, data.x_cov = KalmanFilters.get_state(tu), KalmanFilters.get_covariance(tu)
     
