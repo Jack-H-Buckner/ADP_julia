@@ -214,7 +214,7 @@ POMDP - problem
 V - value function 
 
 """
-function value_expectation!(data, a, POMDP, V)
+function value_expectation!(data, a, obs, POMDP, V)
     
     # convert state vector to mean and covariance 
     data.x_hat, data.x_cov = reshape_state(data.s) 
@@ -225,13 +225,13 @@ function value_expectation!(data, a, POMDP, V)
     #observaton quadrature nodes 
     H = x -> POMDP.H(x,a) # define measurment function # allocation? 
     data.y_hat, data.y_cov = propogate_observation_model(data.x_hat,data.x_cov,H,data.Quad_x) # allocation 
-    data.y_cov .+= POMDP.Sigma_O
+    data.y_cov .+= POMDP.Sigma_O(a,obs)
     MvGaussHermite.update!(data.Quad_y,data.y_hat,data.y_cov)
     
 #     ### new states 
     
     #new_state!(data,H, POMDP.Sigma_O)
-    data.new_states_mat = broadcast(y -> new_state(y, data.x_hat,data.x_cov, H, POMDP.Sigma_O), data.Quad_y.nodes) # large allocation 
+    data.new_states_mat = broadcast(y -> new_state(y, data.x_hat,data.x_cov, H, POMDP.Sigma_O(a,obs)), data.Quad_y.nodes) # large allocation 
     data.new_states_vec = broadcast(x -> reshape_state(x[1],x[2]),data.new_states_mat)
     
     data.vals = broadcast(x -> V(x, a), data.new_states_vec)
@@ -281,30 +281,30 @@ function expectation!(data, s::AbstractVector{Float64}, a::AbstractVector{Float6
 end
 
 
-# """
-#     Bellman(s,V, POMDP, Quad_x, Quad_y, Quad_epsilon)
+"""
+    Bellman(s,V, POMDP, Quad_x, Quad_y, Quad_epsilon)
 
-# Evaluates the bellman opperator, taking expectation over reward and the value of the future state.
-# for now I assume that the acton space a continuous and optimize with Nelder-Mead. 
-# """
-# function Bellman!(data, s::AbstractVector{Float64},V::Function, a0, POMDP)
-#     results = Optim.optimize(a -> -1*expectation!(data, s, a,V, POMDP), a0, NelderMead())
-#     return -1*results.minimum
-# end 
+Evaluates the bellman opperator, taking expectation over reward and the value of the future state.
+for now I assume that the acton space a continuous and optimize with Nelder-Mead. 
+"""
+function Bellman!(data, s::AbstractVector{Float64},V::Function, a0, POMDP)
+    results = Optim.optimize(a -> -1*expectation!(data, s, a,V, POMDP), a0, NelderMead())
+    return -1*results.minimum
+end 
 
 
 
-# """
-#     Bellman(s,V, POMDP, Quad_x, Quad_y, Quad_epsilon)
+"""
+    Bellman(s,V, POMDP, Quad_x, Quad_y, Quad_epsilon)
 
-# Evaluates the bellman opperator, when the action space is discrete by evaluating all choice
-# and chooseing the best performer
-# """
-# function Bellman!(data, s::AbstractVector{Float64},V::Function, POMDP)
-#     results = broadcast(a -> expectation!(data, s, a,V, POMDP),POMDP.actions)
-#     ind = argmax(results)
-#     return results[ind]
-# end 
+Evaluates the bellman opperator, when the action space is discrete by evaluating all choice
+and chooseing the best performer
+"""
+function Bellman!(data, s::AbstractVector{Float64},V::Function, POMDP)
+    results = broadcast(a -> expectation!(data, s, a,V, POMDP),POMDP.actions)
+    ind = argmax(results)
+    return results[ind]
+end 
 
 
 """
@@ -398,7 +398,7 @@ function MC_value_expectation(s, a, POMDP, V, N1, N2)
 end 
 
 
-function pf_ukf_value_expectation(s, a, POMDP, V, N1, N2)
+function pf_ukf_value_expectation(s, a, obs, POMDP, V, N1, N2)
     
     # convert state vector to mean and covariance 
     x_hat, x_cov = reshape_state(s) 
@@ -425,7 +425,7 @@ function pf_ukf_value_expectation(s, a, POMDP, V, N1, N2)
     for yt in y
         #print(yt)
         i += 1
-        x_hat_t, x_cov_t = new_state(reshape(yt,1), x_hat,x_cov,H,POMDP.Sigma_O)
+        x_hat_t, x_cov_t = new_state(reshape(yt,1), x_hat,x_cov,H,POMDP.Sigma_O(a,obs))
         #x_hat_t, x_cov_t = KalmanFilters.get_state(mu), KalmanFilters.get_covariance(mu)
         newstates[i] = reshape_state(x_hat_t, x_cov_t) 
     end
@@ -461,6 +461,77 @@ function pf_ukf_expectation(s, a, POMDP, V, N1, N2)
     EV = pf_ukf_value_expectation(s, a, POMDP, V, N1, N2)
     return ER + POMDP.delta*EV
 end 
+
+##############################################
+### Bellman opperator for observed systems ###
+##############################################
+
+
+"""
+    obsBellmanIntermidiate
+
+stores data useful for bellman opperator when the
+system is fully observed
+"""
+mutable struct obsBellmanIntermidiate
+    x::AbstractVector{Float64}
+    a::AbstractVector{Float64}
+    a0::AbstractVector{Float64}
+    Quad::MvGaussHermite.mutableQuadrature
+    values::AbstractVector{Float64}
+end 
+
+
+function init_obsBellmanIntermidiate(dims_x,m_Quad, POMDP)
+    x = zeros(dims_x)
+    Quad =  MvGaussHermite.init_mutable(m_Quad,x,POMDP.Sigma_N)
+    values = zeros(Quad.n)
+    return obsBellmanIntermidiate(x,Quad,values)
+end 
+
+"""
+    obs_value_expectation(intermidiate,V,POMDP)
+
+calcualtes the bellman operator given the an action a updates the 
+value v and the intermidate
+"""
+function obs_expectation!(intermidiate,a,V,POMDP)
+    v = 0 # can try to make this in place later
+    POMDP.T!(intermidiate.x)
+    update!(intermidiate.Quad, intermidiate.x, POMDP.Sigma_N)
+    intermidiate.values .= broadcast(x -> V(x,a), intermidiate.Quad.nodes)
+    v = sum(intermidiate.values .* intermidiate.Quad.weights)
+    v *= POMDP.delta
+    v += POMDP.R(intermidiate.x,a)
+end 
+
+
+"""
+    Bellman(intermidiate,)
+
+Evaluates the bellman opperator, when the action space is discrete by evaluating all choice
+and chooseing the best performer
+"""
+function obs_Bellman!(v,intermidiate,V::Function, POMDP)
+    results = broadcast(a -> obs_expectation!(v,intermidiate,a,V,POMDP),POMDP.actions)
+    ind = argmax(results)
+    return results[ind]
+end 
+
+
+"""
+    Bellman(s,V, POMDP, Quad_x, Quad_y, Quad_epsilon)
+
+Evaluates the bellman opperator, when the action space is discrete by evaluating all choice
+and chooseing the best performer
+"""
+function obs_Bellman!(data, s::AbstractVector{Float64},V::Function, a0, POMDP)
+    results = Optim.optimize(a -> -1*obs_expectation!(v,intermidiate,a,V,POMDP), a0, NelderMead())
+    return results.minimizer
+end 
+
+
+
 
 
 #######################
@@ -531,11 +602,11 @@ function value_expectation(s::AbstractVector{Float64}, a::AbstractVector{Float64
     #observaton quadrature nodes 
     H = x -> POMDP.H(x,a) # define measurment function # allocation 
     y_hat, y_cov = propogate_observation_model(x_hat, x_cov,H,Quad_x) # allocation 
-    y_cov .+= POMDP.Sigma_O
+    y_cov .+= POMDP.Sigma_O(a, obs)
     MvGaussHermite.update!(Quad_y,y_hat,y_cov)
     
     ### new states 
-    new_states_mat = broadcast(y -> new_state(y, x_hat,x_cov, H, POMDP.Sigma_O), Quad_y.nodes) # large allocation 
+    new_states_mat = broadcast(y -> new_state(y, x_hat,x_cov, H, POMDP.Sigma_O(a,obs)), Quad_y.nodes) # large allocation 
     new_states_vec = broadcast(x -> reshape_state(x[1],x[2]),new_states_mat)
     
     vals = broadcast(x -> V(x, a), new_states_vec) # large allocation 

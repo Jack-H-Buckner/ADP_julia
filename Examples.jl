@@ -116,10 +116,9 @@ deterministic component of fishery model
 - pars paramters including [1] ntrual mortality, [2] density dependence 
 """
 function unknown_growth_rate_T!(x::AbstractVector{Float64},f::AbstractVector{Float64},pars)
-    m = pars[1]
-    a = x[2]
-    b = pars[2]
-    x[1] = log((1-m)*exp(x[1] -m - f[1]) + exp(a)*exp(x[1])/(1+b*exp(x[1])))
+    x[2] = pars[1] *x[2] + pars[2]
+    k = pars[3]
+    x[1] = x[1] + x[2] - f[1] - log(1+exp(x[2] +x[1]-f[1])/k)
     return x
 end
 
@@ -133,17 +132,18 @@ deterministic component of fishery model
 - pars paramters including [1] ntrual mortality, [2] density dependence 
 """
 function unknown_growth_rate_T(x::AbstractVector{Float64},f::AbstractVector{Float64},pars)
-    m = pars[1]
-    a = x[2]
-    b = pars[2]
-    x1 = log((1-m)*exp(x[1] -m - f[1]) + exp(a)*exp(x[1])/(1+b*exp(x[1])))
-    return [x1,a]
+    r = pars[1] *x[2] + pars[2]
+    k = pars[3]
+    x1 = x[1] + r - f[1] - log(1+exp(r + x[1]-f[1])/k)
+    return [x1,r]
 end
 
 Sigma_N = [0.01 0.0;
-     0.0 0.0001] # process noise
+     0.0 0.02] # process noise
 
 H = [1.0 0.0] # measurement model 
-Sigma_O = [0.05] # observation noise 
+Sigma_O(sigma_t) = sigma_t # observation noise 
+
+fmax(pars) = log(pars[2])
 
 end # module 

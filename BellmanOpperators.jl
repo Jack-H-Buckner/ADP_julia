@@ -214,7 +214,7 @@ POMDP - problem
 V - value function 
 
 """
-function value_expectation!(data, a, POMDP, V)
+function value_expectation!(data, a, obs, POMDP, V)
     
     # convert state vector to mean and covariance 
     data.x_hat, data.x_cov = reshape_state(data.s) 
@@ -225,13 +225,13 @@ function value_expectation!(data, a, POMDP, V)
     #observaton quadrature nodes 
     H = x -> POMDP.H(x,a) # define measurment function # allocation? 
     data.y_hat, data.y_cov = propogate_observation_model(data.x_hat,data.x_cov,H,data.Quad_x) # allocation 
-    data.y_cov .+= POMDP.Sigma_O
+    data.y_cov .+= POMDP.Sigma_O(a,obs)
     MvGaussHermite.update!(data.Quad_y,data.y_hat,data.y_cov)
     
 #     ### new states 
     
     #new_state!(data,H, POMDP.Sigma_O)
-    data.new_states_mat = broadcast(y -> new_state(y, data.x_hat,data.x_cov, H, POMDP.Sigma_O), data.Quad_y.nodes) # large allocation 
+    data.new_states_mat = broadcast(y -> new_state(y, data.x_hat,data.x_cov, H, POMDP.Sigma_O(a,obs)), data.Quad_y.nodes) # large allocation 
     data.new_states_vec = broadcast(x -> reshape_state(x[1],x[2]),data.new_states_mat)
     
     data.vals = broadcast(x -> V(x, a), data.new_states_vec)
@@ -398,7 +398,7 @@ function MC_value_expectation(s, a, POMDP, V, N1, N2)
 end 
 
 
-function pf_ukf_value_expectation(s, a, POMDP, V, N1, N2)
+function pf_ukf_value_expectation(s, a, obs, POMDP, V, N1, N2)
     
     # convert state vector to mean and covariance 
     x_hat, x_cov = reshape_state(s) 
@@ -425,7 +425,7 @@ function pf_ukf_value_expectation(s, a, POMDP, V, N1, N2)
     for yt in y
         #print(yt)
         i += 1
-        x_hat_t, x_cov_t = new_state(reshape(yt,1), x_hat,x_cov,H,POMDP.Sigma_O)
+        x_hat_t, x_cov_t = new_state(reshape(yt,1), x_hat,x_cov,H,POMDP.Sigma_O(a,obs))
         #x_hat_t, x_cov_t = KalmanFilters.get_state(mu), KalmanFilters.get_covariance(mu)
         newstates[i] = reshape_state(x_hat_t, x_cov_t) 
     end
@@ -602,11 +602,11 @@ function value_expectation(s::AbstractVector{Float64}, a::AbstractVector{Float64
     #observaton quadrature nodes 
     H = x -> POMDP.H(x,a) # define measurment function # allocation 
     y_hat, y_cov = propogate_observation_model(x_hat, x_cov,H,Quad_x) # allocation 
-    y_cov .+= POMDP.Sigma_O
+    y_cov .+= POMDP.Sigma_O(a, obs)
     MvGaussHermite.update!(Quad_y,y_hat,y_cov)
     
     ### new states 
-    new_states_mat = broadcast(y -> new_state(y, x_hat,x_cov, H, POMDP.Sigma_O), Quad_y.nodes) # large allocation 
+    new_states_mat = broadcast(y -> new_state(y, x_hat,x_cov, H, POMDP.Sigma_O(a,obs)), Quad_y.nodes) # large allocation 
     new_states_vec = broadcast(x -> reshape_state(x[1],x[2]),new_states_mat)
     
     vals = broadcast(x -> V(x, a), new_states_vec) # large allocation 

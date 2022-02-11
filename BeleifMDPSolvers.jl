@@ -1,6 +1,7 @@
 """
     Algorithms
 
+
 Initialize:
 - value function
 - POMDP object
@@ -37,7 +38,7 @@ mutable struct kalmanFilterSolver
     POMDP
     bellmanIntermidiate::BellmanOpperators.bellmanIntermidiate
     obsBellmanIntermidiate::BellmanOpperators.obsBellmanIntermidiate
-    valueFunction
+    valueFunction::ValueFunctions.adjGausianBeleifsInterp
     policyFunction
     algorithm::String
     warnngs::String
@@ -81,12 +82,13 @@ function init(T!::Function,
             H::Function
             Sigma_N::AbstractMatrix{Float64}
             Sigma_O::AbstractMatrix{Float64},
-            delta::Float64, 
-            upper_s::AbstractVector{Float64},
-            lower_s::AbstractVector{Float64},
-            a0)
+            delta::Float64,
+            actions,
+            observations,
+            lower_mu,
+            upper_mu)
     
-    POMDP = POMDPs.init(T!, T, R, H,Sigma_N, Sigma_O, delta, n_dims)
+    POMDP = POMDPs.init(T!, T, R, H,Sigma_N, Sigma_O, delta, actions, observations)
     # set intermidiate
     dims_x = size(Sigma_N)[1]
     dims_y = size(Sigma_O)[1]
@@ -108,15 +110,51 @@ end
 ##############################################
 
 
+"""
+    solve_observed(kalmanFilterSolver)
 
+Solves the dynamic program for the fully observed version of the model using
+value function iteratation over a set of nodes used in the funciton aproximation. 
+
+Currently this only supports methods that use the adjGausianBeleifsInterp value 
+function from the ValueFunctions.jl module. 
+"""
 function solve_observed(kalmanFilterSolver)
-    tol = 10^-3
-    max_iter = 10^3
-    test = 1
-    while (test < tol) && (iter < max_iter)
+    tol = 10^-5
+    max_iter = 5*10^2 
+    test = tol+1.0
+    
+    nodes = kalmanFilterSolver.valueFunction.baseValue.grid 
+    vals = zeros(length(nodes))
         
+    vals0 = zeros(length(nodes))
+        
+    tol *=  length(nodes)
+    test *= length(nodes)
+    
+    iter = 0
+    while (test < tol) && (iter < max_iter)
+        iter += 1
+        i = 0
+        # get updated values 
+        vals0 .= vals
+        for x in kalmanFilterSolver.valueFunction.baseValue.grid
+            i+=1
+            vals[i] = obs_Bellman!(kalmanFilterSolver.obsBellmanIntermidiate, [x[1],x[2]],kalmanFilterSolver.valueFunction.baseValue, kalmanFilterSolver.POMDP)
+        end 
+        # update value function 
+        test = sum((vals .- vals0).^2)
+        ValueFunctions.update_base!(kalmanFilterSolver.valueFunction,v_mu)
     end 
-    obs_Bellman!(v,intermidiate,V::Function, POMDP)
+    
+    if iter < max_iter
+        kalmanFilterSolver.warnngs = "Observed model converged"
+        kalmanFilterSolver.algorithm = "two stage VFI: Observed model solved"
+    else 
+        kalmanFilterSolver.warnngs = "Observed model failed"
+        kalmanFilterSolver.algorithm = "Two stage VFI: Observed model failed"
+    end 
+    
 end
 
 

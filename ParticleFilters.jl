@@ -112,15 +112,15 @@ G - Likelihood funciton G(y,x)
 yt - observation
 a - action or auxiliary paramters
 """
-function bayes_update!(ParticleFilter,G,yt,a)
-    ParticleFilter.weights .*= broadcast(x -> G(yt,x,a), ParticleFilter.samples)
+function bayes_update!(ParticleFilter,G,yt,a,obs)
+    ParticleFilter.weights .*= broadcast(x -> G(yt,x,a,obs), ParticleFilter.samples)
     ParticleFilter.weights .*= 1/sum(ParticleFilter.weights) 
 end
 
-function bayes_update(ParticleFilter,G,yt,a)
+function bayes_update(ParticleFilter,G,yt,a,obs)
     weights = ones(ParticleFilter.N)./ParticleFilter.N
-    #println(broadcast(x -> G(yt,x,a)[1], ParticleFilter.samples))
-    weights .*= broadcast(x -> G(yt,x,a)[1], ParticleFilter.samples)
+    #println(broadcast(x -> G(yt,x,a,obs)[1], ParticleFilter.samples))
+    weights .*= broadcast(x -> G(yt,x,a,obs)[1], ParticleFilter.samples)
     weights .*= 1/sum(weights) 
     return ParticleFilter.samples, weights 
 end
