@@ -17,11 +17,13 @@ end
 
 mutable struct mutableQuadrature
     weights::AbstractVector{Float64} # quadrature weights 
+    standardNodes::AbstractVector{AbstractVector{Float64}}
     nodes::AbstractVector{AbstractVector{Float64}} # beleif state nodes
     Cov::AbstractMatrix{Float64} # covariance matrix beleif state
     dims::Int64 # number of dimensions states
     m::Int64 # order of aproximation 
     n::Int64 # number of nodes
+    R::AbstractMatrix{Float64}
 end 
 
 # I need to check the signs of the sin terms here
@@ -213,11 +215,11 @@ function init_mutable(m::Int64,mu::AbstractVector{Float64},Cov::AbstractMatrix{F
     dims = size(Cov)[1]
     nodes, weights = FastGaussQuadrature.gausshermite(m)
     weights = weights .* (2*pi)^(-1/2).*exp.((nodes.^2)./2)
-    nodes, weights = nodes_grid(nodes, weights, dims)
+    standardNodes, weights = nodes_grid(nodes, weights, dims)
     if dims > 1
-        nodes = broadcast(x -> broadcast(v -> v, x), nodes)
+        standardNodes = broadcast(x -> broadcast(v -> v, x), standardNodes)
     elseif dims ==1
-        nodes = broadcast(x -> [x], nodes)
+        standardNodes = broadcast(x -> [x], standardNodes)
     end 
 
     # spectral decomposition
@@ -229,9 +231,9 @@ function init_mutable(m::Int64,mu::AbstractVector{Float64},Cov::AbstractMatrix{F
     R = planar_rotation(dims,pi/4)
     
     # transform and plot 
-    nodes = broadcast(x -> S*rV*R*x.+mu, nodes)
+    nodes = broadcast(x -> S*rV*R*x.+mu, standardNodes)
     
-    return mutableQuadrature(weights, nodes, Cov, dims, m, length(nodes))
+    return mutableQuadrature(weights, standardNodes, nodes, Cov, dims, m, length(nodes),R)
     
 end 
 
@@ -239,15 +241,15 @@ end
 function init_mutable(m::Int64,mu::AbstractVector{Float64},Cov::AbstractMatrix{Float64},theta::Float64)
     dims = size(Cov)[1]
     # get weights
-    nodes, weights = FastGaussQuadrature.gausshermite(m)
+    standardNodes, weights = FastGaussQuadrature.gausshermite(m)
     # convert weights from exp(-x^2) to (pi/2)^1/2*exp(-1/2x^2)
-    weights = weights .* (2*pi)^(-1/2).*exp.((nodes.^2)./2)
-    nodes, weights = nodes_grid(nodes, weights, dims)
+    weights = weights .* (2*pi)^(-1/2).*exp.((standardNodes.^2)./2)
+    standardNodes, weights = nodes_grid(standardNodes, weights, dims)
     
     if dims > 1
-        nodes = broadcast(x -> broadcast(v -> v, x), nodes)
+        nstandardNodes = broadcast(x -> broadcast(v -> v, x), standardNodes)
     elseif dims ==1
-        nodes = broadcast(x -> [x], nodes)
+        standardNodes = broadcast(x -> [x], standardNodes)
     end 
 
     
@@ -260,64 +262,57 @@ function init_mutable(m::Int64,mu::AbstractVector{Float64},Cov::AbstractMatrix{F
     R = planar_rotation(dims,pi/4)
 
     # transform and plot 
-    nodes = broadcast(x -> S*rV*R*x .+ mu, nodes)
-    nodes = nodes[weights .> theta]
+    standardNodes = standardNodes[weights .> theta]
     weights = weights[weights .> theta]
+    nodes = broadcast(x -> S*rV*R*x .+ mu, standardNodes)
     
-    return mutableQuadrature(weights, nodes, Cov, dims, m, length(nodes))
+    
+    return mutableQuadrature(weights, standardNodes, nodes, Cov, dims, m, length(nodes),R)
     
 end 
 
 """
 Updates the transformation of the nodes with a new covariance matrix 
 """
-function update!(mutableQuadrature, mu::AbstractVector{Float64}, Cov::AbstractMatrix{Float64})
+function update_old!(mutableQuadrature, mu::AbstractVector{Float64}, Cov::AbstractMatrix{Float64})
 
-    #nodes  = nodes_grid(nodes, mutableQuadrature.dims)
-    
-    if mutableQuadrature.dims > 1
-        mutableQuadrature.nodes .= broadcast(x -> broadcast(v -> v, x),
-                            nodes_grid(FastGaussQuadrature.gausshermite(mutableQuadrature.m)[1], mutableQuadrature.dims))
-    else
-        mutableQuadrature.nodes .= broadcast(x -> [x], 
-                                nodes_grid(FastGaussQuadrature.gausshermite(mutableQuadrature.m)[1], mutableQuadrature.dims))
-    end
     #spectral decomposition
     estuff = eigen(Cov)
     rV = sqrt.(1.0*Matrix(I,mutableQuadrature.dims,mutableQuadrature.dims).*estuff.values)
     S = real.(estuff.vectors)
 
     # rotation matrix
-    R = planar_rotation(mutableQuadrature.dims,pi/4)
-
+    #R = planar_rotation(mutableQuadrature.dims,pi/4)
+    R = mutableQuadrature.R
     # transform and plot 
-    mutableQuadrature.nodes = broadcast(x -> S*rV*R*x .+ mu, mutableQuadrature.nodes)
+    mutableQuadrature.nodes = broadcast(x -> S*rV*R*x .+ mu, mutableQuadrature.standardNodes)
     mutableQuadrature.Cov = Cov
 end 
 
+function g!(v,y,S,rV,R,mu)
+    v .= S*rV*R*y .+ mu
+end 
+f! = (v,y,S,rV,R,mu) -> broadcast(i -> g!(v[i],y[i],S,rV,R,mu), 1:length(y))
+
 """
-specific update function for POMDPs where the covariance matrix is block
-diaganol with a block for the observaiton noise covaraicne Cov_y whcih 
-does not change and a block for the state uncertianty Cov_x which will
-here only the Cov_x block is given. I assume that the Cov_x block is 
-the upper left hand corner of the matrix. 
+Updates the transformation of the nodes with a new covariance matrix 
 """
-function update_bellman!(mutableQuadrature, x_cov)
-    dims_x = size(x_cov)
-    mutableQuadrature.Cov[1:dims_x,1:dims_x] .= x_cov
-    
-    # spectral decomposition
-    estuff = eigen(mutableQuadrature.Cov)
-    rV = sqrt.(1.0*Matrix(I,dims,dims).*estuff.values)
+function update!(mutableQuadrature, mu::AbstractVector{Float64}, Cov::AbstractMatrix{Float64})
+
+    #spectral decomposition
+    estuff = eigen(Cov)
+    rV = sqrt.(1.0*Matrix(I,mutableQuadrature.dims,mutableQuadrature.dims).*estuff.values)
     S = real.(estuff.vectors)
 
     # rotation matrix
-    R = planar_rotation(mutableQuadrature.dims,pi/4)
-
+    #R = MvGaussHermite.planar_rotation(mutableQuadrature.dims,pi/4)
+    R = mutableQuadrature.R
     # transform and plot 
-    mutableQuadrature.nodes = broadcast(x -> S*rV*R*x, mutableQuadrature.nodes)
-    
+    #mutableQuadrature.nodes = broadcast(x -> S*rV*R*x .+ mu, mutableQuadrature.standardNodes)
+    f!(mutableQuadrature.nodes,mutableQuadrature.standardNodes,S,rV,R,mu)
+    mutableQuadrature.Cov = Cov
 end 
+
 """
     expected_value(f::Function, quadrature::quadrature,  mu::AbstractVector{Float64})
 
@@ -328,10 +323,8 @@ function expected_value(f::Function, quadrature)#
     return sum(f.(broadcast(x -> x, quadrature.nodes)).*quadrature.weights)
 end 
 
-function expected_value(f::Function, quadrature)#::mutableQuadrature
-    return sum(f.(broadcast(x -> x, quadrature.nodes)).*quadrature.weights)
+function expected_value_fast(f::Function, quadrature)#
+    return sum(broadcast(x -> f(x), quadrature.nodes).*quadrature.weights)
 end 
-
-
 
 end # module 
