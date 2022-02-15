@@ -20,6 +20,7 @@ mutable struct chebyshevInterpolation
     values # value associated with each node (m^d entries)
     coeficents::AbstractVector{Float64} # coeficents for computing the polynomial
     alpha::AbstractVector{Any}  # vector of tuples with m integer arguments 
+    
 end  
 
 # define a function to initialize the 

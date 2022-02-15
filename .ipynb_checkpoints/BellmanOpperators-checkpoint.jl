@@ -21,7 +21,7 @@ discrete action spaces.
 """
 module BellmanOpperators
 
-using Optim
+#using Optim
 #using Roots
 using KalmanFilters
 using LinearAlgebra
@@ -230,8 +230,8 @@ function value_expectation!(s, a, obs, data, POMDP, V)
     data.new_states_mat = broadcast(y -> new_state(y, data.x_hat,data.x_cov, H, POMDP.Sigma_O(a,obs)), data.Quad_y.nodes) # large allocation 
     
     #data.new_states_vec = broadcast(x -> reshape_state(x[1],x[2]),data.new_states_mat)
-    println(data.new_states_mat)
-    print("\n")
+    #println(data.new_states_mat)
+    #print("\n")
     data.vals = broadcast(x -> V(data.z,x), data.new_states_mat)
     return sum(data.vals .* data.Quad_y.weights)
 end 

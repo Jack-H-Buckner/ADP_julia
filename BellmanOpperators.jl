@@ -21,7 +21,7 @@ discrete action spaces.
 """
 module BellmanOpperators
 
-using Optim
+#using Optim
 #using Roots
 using KalmanFilters
 using LinearAlgebra

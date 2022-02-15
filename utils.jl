@@ -65,8 +65,21 @@ function T_alpha(x,alpha, coefs)
     T_i = broadcast(a -> T_alpha_i(a,x), alpha)
     return sum(T_i .* coefs)
 end
+
+
+
+# the product of chebyshev polynomials
+function T_alpha_i!(v,alpha_i,x)
+    v .= prod(cos.(alpha_i.*acos.(x))) 
+end
     
-    
+# the product of chebyshev polynomials
+# summed for each value of alpha
+function T_alpha!(v,x,alpha, coefs)
+    broadcast(i -> T_alpha_i!(v[i],alpha[i],x), 1:length(alpha))
+    return sum(v .* coefs)
+end
+
     
 # collect terms for tensor products
 function collect_alpha(m,d)
