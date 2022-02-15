@@ -28,7 +28,7 @@ Notes on action space:
 module POMDPs
 
 using Distributions 
-
+using IterTools
 
 
 # struct boundedActions
@@ -96,7 +96,9 @@ struct POMDP_KalmanFilter
     T::Function
     actions::AbstractVector{AbstractVector{Float64}}
     observations::AbstractVector{AbstractVector{Float64}}
+    A::AbstractVector{Tuple{AbstractVector{Float64},AbstractVector{Float64}}}
     R::Function # reward function R(x,a) = r 
+    R_obs::Function
     H::Function # observaiton function 
     Sigma_N::AbstractMatrix{Float64} # process noise covariance  
     Sigma_O::Function # maps actions to covarinace matrix observaiton noise covariance 
@@ -116,8 +118,7 @@ function generateFunctions(T!::Function, T::Function, H::Function,
     dy = size(Sigma_O(actions[1], observations[1]))[1]
 
     d_proc = Distributions.MvNormal(zeros(dx),Sigma_N) 
-    println(dy)
-    println( observations[1])
+
     d_obs = (a,obs) -> Distributions.MvNormal(zeros(dy),Sigma_O(a, obs)) 
     
     function T_sim!(x,a)
@@ -152,7 +153,7 @@ end
 #     return POMDP_KalmanFilter{boundedActions}(T!, T, actions,R, H, Sigma_N, Sigma_O, d_proc, d_obs, T_sim!, G, G_sim, delta)  
 # end 
 
-function init(T!::Function, T::Function,R::Function, H::Function,
+function init(T!::Function, T::Function,R::Function, R_obs::Function, H::Function,
               Sigma_N::AbstractMatrix{Float64}, Sigma_O::Function, 
               delta::Float64,actions, 
               observations)#::AbstractVector{AbstractVector{Float64}}
@@ -160,8 +161,9 @@ function init(T!::Function, T::Function,R::Function, H::Function,
     T_sim!, d_proc, d_obs, G_sim, G = generateFunctions(T!, T, H,
               Sigma_N, Sigma_O, actions, observations)
     
+    A = reshape(collect(IterTools.product(actions, observations)), length(actions) * length(observations) )
     
-    return POMDP_KalmanFilter(T!, T, actions, observations,R, H, Sigma_N, Sigma_O, d_proc, d_obs, T_sim!, G, G_sim, delta)  
+    return POMDP_KalmanFilter(T!, T, actions, observations, A, R, R_obs, H, Sigma_N, Sigma_O, d_proc, d_obs, T_sim!, G, G_sim, delta)  
 end 
 
 

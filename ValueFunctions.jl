@@ -243,7 +243,7 @@ function map_node!(z::AbstractVector{Float64}, mu::AbstractVector{Float64}, cov:
     z[1:2] = (mu.-Binterp.lower_mu).*2 ./(Binterp.upper_mu.-Binterp.lower_mu) .- 1
     z[3] = (cov[1,1] )*2 / (Binterp.upper_sigma[1]) - 1
     z[4] = (cov[2,2] )*2 / (Binterp.upper_sigma[2]) - 1
-    Binterp.covBound = sqrt(z[3]*z[4]) - 0.000001
+    Binterp.covBound = sqrt(cov[1,1]*cov[2,2])*(1-10^-8)
     z[5] = cov[1,2] /Binterp.covBound
     z[5] = 2.0*z[5] - 1.0
 end 
@@ -262,9 +262,10 @@ function inv_map_node!(mu::AbstractVector{Float64}, cov::AbstractMatrix{Float64}
     cov[2,1] = covBound*(z[5]+1)/2.0 
 end 
         
-function (p!::guasianBeleifsInterp2d)(z, mu, cov)
-    
-    map_node!(z, mu, cov, p!)
+function (p!::guasianBeleifsInterp2d)(z,s)
+
+
+    map_node!(z, s[1], s[2], p!)
     
     # extrapolation
     z[z .> 1.0] .= 0.9999999
@@ -307,8 +308,8 @@ function init_adjGausianBeleifsInterp(m1, m2, lower_mu, upper_mu)
     adjGausianBeleifsInterp(baseValue,uncertantyAdjustment,m1,m2)
 end 
     
-function (V!::adjGausianBeleifsInterp)(z,mu, cov)
-    return V!.baseValue(mu) + V!.uncertantyAdjustment(z,mu,cov)
+function (V!::adjGausianBeleifsInterp)(z,s)
+    return V!.baseValue(s[1]) + V!.uncertantyAdjustment(z,s)
 end 
     
 

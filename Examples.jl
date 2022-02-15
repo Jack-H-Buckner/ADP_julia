@@ -133,8 +133,8 @@ deterministic component of fishery model
 """
 function unknown_growth_rate_T(x::AbstractVector{Float64},f::AbstractVector{Float64},pars)
     r = pars[1] *x[2] + pars[2]
-    k = pars[3]
-    x1 = x[1] + r - f[1] - log(1+exp(r + x[1]-f[1])/k)
+    b = pars[3]
+    x1 = x[1] + r - f[1] - log(1+b*exp(x[1]-f[1]))
     return [x1,r]
 end
 
@@ -144,6 +144,40 @@ Sigma_N = [0.01 0.0;
 H = [1.0 0.0] # measurement model 
 Sigma_O(sigma_t) = sigma_t # observation noise 
 
-fmax(pars) = log(pars[2])
+function fmax(pars)
+    return log(pars[2]/(1-pars[1]))
+end 
+
+
+function unknown_growth_rate_R(x,f,obs,pars)
+    harvest = exp(x[1]) * (1-exp(-f[1])) 
+    fishing_costs = pars[4]*f[1]
+    monitoring_costs = pars[5]*pars[6]/obs[1] - pars[6]
+    return harvest - fishing_costs - monitoring_costs
+end 
+    
+function unknown_growth_rate_R_obs(x,f, pars)
+    harvest = exp(x[1]) * (1-exp(-f[1])) 
+    fishing_costs = pars[4]*f[1]
+    return harvest - fishing_costs 
+end 
+    
+# paramters and action space
+
+sigma_max = 0.25
+c_obs = 0.01
+c_fish = 0.00001
+r_hat = 1.5
+rho = 0.99
+B_hat = 1.5
+b = (r_hat - 1)/B_hat
+unknown_growth_rate_pars = (rho,r_hat*(1-rho),b,c_fish,sigma_max,c_obs)
+    
+unknown_growth_upper = [log(2.0*B_hat),log(4.0*r_hat)]
+unknown_growth_lower = [log(0.01*B_hat),log(0.1*r_hat)]
+
+unknown_growth_actions = broadcast(x -> [x], 0.0:(fmax(unknown_growth_rate_pars)/15):(3*fmax(unknown_growth_rate_pars)))
+unknown_growth_observations = [[sigma_max /50],[sigma_max]]
+
 
 end # module 
