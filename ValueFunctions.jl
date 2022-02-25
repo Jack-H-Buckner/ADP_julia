@@ -10,18 +10,22 @@ include("utils.jl")
 
 # define a data structure to save 
 # informaiton for interpolation
-mutable struct chebyshevInterpolation
+mutable struct chebyshevInterpolation{T}
     d::Int64 # dimensions
     a::AbstractVector{Float64} # lower bounds
     b::AbstractVector{Float64} # upper bounds
     m::Int # nodes per dimension
     nodes::AbstractMatrix{Float64} # m by d matrix with nodes in each dimension
-    grid::AbstractArray{}
-    values # value associated with each node (m^d entries)
+    grid::AbstractArray{AbstractVector{Float64}}
+    values::AbstractVector{Float64} # value associated with each node (m^d entries)
     coeficents::AbstractVector{Float64} # coeficents for computing the polynomial
-    alpha::AbstractVector{Any}  # vector of tuples with m integer arguments 
-    
+    alpha::AbstractVector{NTuple{T,Int64}}  # vector of tuples with m integer arguments 
+    v::AbstractVector{AbstractVector{Float64}} # stores intermidiate values 
+    T_alpha_i_grid::AbstractVector{AbstractVector{Float64}}
+    vT_sum::AbstractVector{Float64}
 end  
+
+
 
 # define a function to initialize the 
 # interpolation data structure with zeros
@@ -31,18 +35,24 @@ function init_interpolation(a,b,m)
     # calcualte nodes
     f = n -> -cos((2*n-1)*pi/(2*m))
     z = f.(1:m)
-    
+
 
     nodes = (z.+1)./2 .*transpose(b.-a) #.- a
-    
     nodes = mapslices(x-> x .+ a, nodes, dims = 2)
 
-    grid = utils.collect_nodes(nodes) 
+    z = (z.+1)./2 .*transpose(repeat([2.0],d))
+    z = mapslices(x-> x .-  1.0, z, dims = 2)
+    grid = utils.collect_nodes(nodes) # nodes on desiered domain
+    grid_mapped = utils.collect_nodes(z) # nodes mapped to -1,1
     # initialize values as zero
-    values = zeros(ntuple(x -> m, d))
+    values = 1.0*zeros(m^d) #
+    
     coefs = zeros(binomial(m+d,m))
     alpha = utils.collect_alpha(m,d)
-    return chebyshevInterpolation(d,a,b,m,nodes,grid,values,coefs,alpha)
+    v = broadcast(i -> 1.0*zeros(length(alpha)), 1:Threads.nthreads())#zeros(ntuple(x -> m, d))
+    T_alpha_i_grid = broadcast(alpha_i -> broadcast(x -> utils.T_alpha_i(alpha_i,x), grid_mapped),alpha)
+    vT_sum = 1.0*zeros(length(alpha))
+    return chebyshevInterpolation{d}(d,a,b,m,nodes,grid,values,coefs,alpha, v,T_alpha_i_grid,vT_sum)
 end 
 
 
@@ -50,15 +60,16 @@ end
 # coeficents for the interpolation
 function update_interpolation!(interpolation, new_values)
     # check size of new values
-    @assert length(new_values) == interpolation.m^interpolation.d
-    @assert all(size(new_values) .== interpolation.m)
+    #@assert length(new_values) == interpolation.m^interpolation.d
+    @assert all(size(new_values) .== interpolation.m^interpolation.d)
     # update values
     interpolation.values = new_values
     # compute coeficents
     m = interpolation.m
     d = interpolation.d
     alpha = interpolation.alpha
-    coefs = utils.compute_coefs(d,m,new_values,alpha)
+    #coefs = utils.compute_coefs(d,m,new_values,alpha,interpolation.T_alpha_i_grid)
+    coefs = utils.compute_coefs1(d,m,new_values,alpha,interpolation.T_alpha_i_grid,interpolation.vT_sum)
     interpolation.coeficents = coefs
     #return current
 end 
@@ -85,24 +96,16 @@ function (p::chebyshevInterpolation)(x)
     # extrapolation
     z[z .> 1.0] .= 0.9999999
     z[z .< -1.0] .= -0.9999999
-    
-    v = utils.T_alpha(z,p.alpha, p.coeficents) #broadcast(x -> utils.T_alpha(x,p.alpha, p.coeficents),z)
+   
+    # note that problem arise when intermidiates are used while multi threading 
+
+    v = utils.T_alpha!(p.v[Threads.threadid()],z,p.alpha, p.coeficents) 
+    #v = utils.T_alpha!(zeros(length(p.v)),z,p.alpha, p.coeficents) 
+    #broadcast(x -> utils.T_alpha(x,p.alpha, p.coeficents),z)
+    #v = utils.T_alpha!(p.v,z,p.alpha, p.coeficents) #broadcast(x -> utils.T_alpha(x,p.alpha, p.coeficents),z)
     return v
 end 
 
-
-
-function (p!::chebyshevInterpolation)(x)
-    # scale x values to (-1,1)
-    z = (x.-p!.a).*2 ./(p!.b.-p!.a) .- 1 #broadcast(x -> (x.-a).*2 ./(b.-a) .- 1,x)
-    
-    # extrapolation
-    z[z .> 1.0] .= 0.9999999
-    z[z .< -1.0] .= -0.9999999
-    
-    v = utils.T_alpha(z,p!.alpha, p!.coeficents) #broadcast(x -> utils.T_alpha(x,p.alpha, p.coeficents),z)
-    return v
-end 
 
 
 # regression model for ADP
@@ -263,16 +266,15 @@ function inv_map_node!(mu::AbstractVector{Float64}, cov::AbstractMatrix{Float64}
     cov[2,1] = covBound*(z[5]+1)/2.0 
 end 
         
-function (p!::guasianBeleifsInterp2d)(z,s)
-
+function (p!::guasianBeleifsInterp2d)(z::AbstractVector{Float64},s::Tuple{AbstractVector{Float64},AbstractMatrix{Float64}})
 
     map_node!(z, s[1], s[2], p!)
     
     # extrapolation
     z[z .> 1.0] .= 0.9999999
     z[z .< -1.0] .= -0.9999999
-    
-    v = utils.T_alpha(z,p!.chebyshevInterpolation.alpha, p!.chebyshevInterpolation.coeficents) 
+    #p!.chebyshevInterpolation.v
+    v = utils.T_alpha!(p!.chebyshevInterpolation.v[Threads.threadid()],z,p!.chebyshevInterpolation.alpha, p!.chebyshevInterpolation.coeficents) 
     return v
 end
     
@@ -284,7 +286,7 @@ V - guasianBeleifsInterp2d object
 vals - vector of new values with same length as nodes in interpolation 
 """
 function update_guasianBeleifsInterp2d!(V,vals::AbstractVector{Float64})
-    update_interpolation!(V.chebyshevInterpolation, reshape(vals,V.m,V.m,V.m,V.m,V.m))
+    update_interpolation!(V.chebyshevInterpolation, vals)
 end 
     
 
@@ -321,8 +323,7 @@ V - adjGausianBeleifsInterp
 values - vector of length V.m1^2 
 """
 function update_base!(V,vals)
-    new_values = reshape(vals, V.m1, V.m1)
-    update_interpolation!(V.baseValue, new_values)
+    update_interpolation!(V.baseValue, vals)
 end
 
 """

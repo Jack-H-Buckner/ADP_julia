@@ -323,8 +323,6 @@ function expected_value(f::Function, quadrature)#
     return sum(f.(broadcast(x -> x, quadrature.nodes)).*quadrature.weights)
 end 
 
-function expected_value_fast(f::Function, quadrature)#
-    return sum(broadcast(x -> f(x), quadrature.nodes).*quadrature.weights)
-end 
+
 
 end # module 

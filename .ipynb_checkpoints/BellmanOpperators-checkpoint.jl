@@ -28,7 +28,7 @@ using LinearAlgebra
 
 include("MvGaussHermite.jl")
 include("utils.jl")
-
+include("POMDPs.jl")
 
 
 #####################################
@@ -47,7 +47,6 @@ opperations to be done in place which should increase performance.
 
 """
 mutable struct bellmanIntermidiate
-    
     Quad_x::MvGaussHermite.mutableQuadrature
     Quad_y::MvGaussHermite.mutableQuadrature
     
@@ -63,8 +62,9 @@ mutable struct bellmanIntermidiate
 end 
 
 
+
+
 function init_bellmanIntermidiate(dims_s, dims_y, m_Quad_x, m_Quad_y)
-    
     x_hat = zeros(dims_s)
     x_cov = 1.0*Matrix(I,dims_s,dims_s)
     y_hat = zeros(dims_y)
@@ -202,16 +202,40 @@ end
 
 
 
-"""
-    value_expectation!(s,a,POMDP,Quad_X, Quad_y)
+# """
+#     value_expectation!(s,a,POMDP,Quad_X, Quad_y)
 
-data - inplace object, update x_hat and x_cov to evaluate at a given grid point 
-a - action
-POMDP - problem
-V - value function 
+# data - inplace object, update x_hat and x_cov to evaluate at a given grid point 
+# a - action
+# POMDP - problem
+# V - value function 
 
-"""
-function value_expectation!(s, a, obs, data, POMDP, V)
+# """
+# function value_expectation!(s, a, obs, data, POMDP::POMDPs.POMDP_KalmanFilter{Function}, V)
+    
+#     # convert state vector to mean and covariance 
+#     data.x_hat, data.x_cov = s
+#     tu = KalmanFilters.time_update(data.x_hat, data.x_cov, x ->POMDP.T(x,a),  POMDP.Sigma_N)
+#     data.x_hat, data.x_cov = KalmanFilters.get_state(tu), KalmanFilters.get_covariance(tu)
+    
+#     #observaton quadrature nodes 
+#     H = x -> POMDP.H(x,a,obs) # define measurment function # allocation? 
+#     data.y_hat, data.y_cov = propogate_observation_model(data.x_hat,data.x_cov,H,data.Quad_x) # allocation 
+#     data.y_cov .+= POMDP.Sigma_O(a,obs)
+#     MvGaussHermite.update!(data.Quad_y,data.y_hat,data.y_cov)
+    
+# #     ### new states 
+    
+#     #new_state!(data,H, POMDP.Sigma_O)
+#     data.new_states_mat = broadcast(y -> new_state(y, data.x_hat,data.x_cov, H, POMDP.Sigma_O(a,obs)), data.Quad_y.nodes) # large allocation 
+    
+#     #data.new_states_vec = broadcast(x -> reshape_state(x[1],x[2]),data.new_states_mat)
+#     data.vals = broadcast(x -> V(data.z,x), data.new_states_mat)
+#     return sum(data.vals .* data.Quad_y.weights)
+# end 
+
+
+function value_expectation!(s, a, obs, data, POMDP, V) #::POMDPs.POMDP_KalmanFilter{AbstractMatrix{Float64}}
     
     # convert state vector to mean and covariance 
     data.x_hat, data.x_cov = s
@@ -219,24 +243,19 @@ function value_expectation!(s, a, obs, data, POMDP, V)
     data.x_hat, data.x_cov = KalmanFilters.get_state(tu), KalmanFilters.get_covariance(tu)
     
     #observaton quadrature nodes 
-    H = x -> POMDP.H(x,a,obs) # define measurment function # allocation? 
-    data.y_hat, data.y_cov = propogate_observation_model(data.x_hat,data.x_cov,H,data.Quad_x) # allocation 
+    data.y_hat, data.y_cov = propogate_observation_model(data.x_hat,data.x_cov,POMDP.H) # allocation 
     data.y_cov .+= POMDP.Sigma_O(a,obs)
     MvGaussHermite.update!(data.Quad_y,data.y_hat,data.y_cov)
     
 #     ### new states 
     
     #new_state!(data,H, POMDP.Sigma_O)
-    data.new_states_mat = broadcast(y -> new_state(y, data.x_hat,data.x_cov, H, POMDP.Sigma_O(a,obs)), data.Quad_y.nodes) # large allocation 
+    data.new_states_mat = broadcast(y -> new_state(y, data.x_hat,data.x_cov, POMDP.H, POMDP.Sigma_O(a,obs)), data.Quad_y.nodes) # large allocation 
     
     #data.new_states_vec = broadcast(x -> reshape_state(x[1],x[2]),data.new_states_mat)
-    #println(data.new_states_mat)
-    #print("\n")
     data.vals = broadcast(x -> V(data.z,x), data.new_states_mat)
     return sum(data.vals .* data.Quad_y.weights)
 end 
-
-
 
 
 

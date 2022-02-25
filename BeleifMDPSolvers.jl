@@ -16,6 +16,7 @@ ADP chain (Policy iteration)
 """
 module BeleifMDPSolvers
 
+using SharedArrays
 
 include("ValueFunctions.jl")
 include("BellmanOpperators.jl")
@@ -34,10 +35,10 @@ are used to solve the object also stores data on the performance of the algorith
 strings under the algorithm and warnings 
 
 """
-mutable struct kalmanFilterSolver
-    POMDP
-    bellmanIntermidiate::BellmanOpperators.bellmanIntermidiate
-    obsBellmanIntermidiate::BellmanOpperators.obsBellmanIntermidiate
+mutable struct kalmanFilterSolver{T}
+    POMDP::POMDPs.POMDP_KalmanFilter{T}
+    bellmanIntermidiate::AbstractVector{BellmanOpperators.bellmanIntermidiate}
+    obsBellmanIntermidiate::AbstractVector{BellmanOpperators.obsBellmanIntermidiate}
     valueFunction::ValueFunctions.adjGausianBeleifsInterp
     policyFunction
     algorithm::String
@@ -87,26 +88,58 @@ function init(T!::Function,
             actions,
             observations,
             lower_mu,
-            upper_mu)
-    
+            upper_mu; 
+            m_Quad_x = 5,
+            m_Quad_y = 5,
+            m_Quad = 6,
+            n_grids_obs = 20,
+            n_grid = 7)
+    nthread = Threads.nthreads()
     POMDP = POMDPs.init(T!, T, R, R_obs, H,Sigma_N, Sigma_O, delta, actions, observations)
     # set intermidiate
     dims_x = size(Sigma_N)[1]
     dims_y = size(Sigma_O(actions[1], observations[1]))[1]
-    m_Quad_x = 5
-    m_Quad_y = 5
-    m_Quad = 5
-    bellmanIntermidiate = BellmanOpperators.init_bellmanIntermidiate(dims_x,dims_y,m_Quad_x,m_Quad_y)
-    obsBellmanIntermidiate = BellmanOpperators.init_obsBellmanIntermidiate(dims_x,m_Quad, POMDP)
+    bellmanIntermidiate = broadcast(i -> BellmanOpperators.init_bellmanIntermidiate(dims_x,dims_y,m_Quad_x,m_Quad_y),1:nthread)
+    obsBellmanIntermidiate = broadcast(i ->BellmanOpperators.init_obsBellmanIntermidiate(dims_x,m_Quad, POMDP),1:nthread)
     # default to 30 grid point for observed component and 7 for uncertinaty adjustment
-    grids_obs = 15
-    grids_unc = 5
+    grids_obs = n_grids_obs
+    grids_unc = n_grid 
     valueFunction = ValueFunctions.init_adjGausianBeleifsInterp(grids_obs , grids_unc, lower_mu, upper_mu)
-    kalmanFilterSolver(POMDP,bellmanIntermidiate,obsBellmanIntermidiate,valueFunction, "NA", "Two stage VFI", "Initialized")
+    kalmanFilterSolver{Function}(POMDP,bellmanIntermidiate,obsBellmanIntermidiate,valueFunction, "NA", "Two stage VFI", "Initialized")
 end 
 
 
 
+function init(T!::Function,
+            T::Function, 
+            R::Function,
+            R_obs::Function,
+            H::AbstractMatrix{Float64},
+            Sigma_N::AbstractMatrix{Float64},
+            Sigma_O::Function,
+            delta::Float64,
+            actions,
+            observations,
+            lower_mu,
+            upper_mu; 
+            m_Quad_x = 5,
+            m_Quad_y = 5,
+            m_Quad = 6,
+            n_grids_obs = 20,
+            n_grid = 7)
+
+    POMDP = POMDPs.init(T!, T, R, R_obs, H,Sigma_N, Sigma_O, delta, actions, observations)
+    # set intermidiate
+    dims_x = size(Sigma_N)[1]
+    dims_y = size(Sigma_O(actions[1], observations[1]))[1]
+    bellmanIntermidiate = broadcast(i -> BellmanOpperators.init_bellmanIntermidiate(dims_x,dims_y,m_Quad_x,m_Quad_y),1:Threads.nthreads())
+    obsBellmanIntermidiate = broadcast(i ->BellmanOpperators.init_obsBellmanIntermidiate(dims_x,m_Quad, POMDP),1:Threads.nthreads())
+    # default to 30 grid point for observed component and 7 for uncertinaty adjustment
+    grids_obs = n_grids_obs
+    grids_unc = n_grid 
+    valueFunction = ValueFunctions.init_adjGausianBeleifsInterp(grids_obs , grids_unc, lower_mu, upper_mu)
+    kalmanFilterSolver{AbstractMatrix{Float64}}(POMDP,bellmanIntermidiate,obsBellmanIntermidiate,valueFunction, "NA", "Two stage VFI", "Initialized")
+end 
 
 ##############################################
 ### Bellman opperator for observed systems ###
@@ -123,8 +156,8 @@ Currently this only supports methods that use the adjGausianBeleifsInterp value
 function from the ValueFunctions.jl module. 
 """
 function solve_observed(kalmanFilterSolver)
-    tol = 10^-5
-    max_iter = 5*10^2
+    tol = 10^-4
+    max_iter = 3*10^2
     test = tol+1.0
     
     nodes = kalmanFilterSolver.valueFunction.baseValue.grid 
@@ -138,17 +171,18 @@ function solve_observed(kalmanFilterSolver)
     iter = 0
     print("here")
     while (test > tol) && (iter < max_iter)
+        iter += 1
         print(iter)
         print(" ")
-        print(test)
-        print(" ")
-        iter += 1
+        println(test)
         i = 0
         # get updated values 
-        vals0 .= vals
+        vals0 .= vals 
         for x in kalmanFilterSolver.valueFunction.baseValue.grid
             i+=1
-            vals[i] = BellmanOpperators.obs_Bellman([x[1],x[2]],kalmanFilterSolver.obsBellmanIntermidiate,  
+            #intermidiate = BellmanOpperators.init_obsBellmanIntermidiate(2,3, kalmanFilterSolver.POMDP)
+            vals[i] = BellmanOpperators.obs_Bellman([x[1],x[2]],
+                            kalmanFilterSolver.obsBellmanIntermidiate[1],  
                             kalmanFilterSolver.valueFunction.baseValue, 
                             kalmanFilterSolver.POMDP)
         end 
@@ -167,7 +201,53 @@ function solve_observed(kalmanFilterSolver)
     
 end
 
-
+function solve_observed_parallel(kalmanFilterSolver)
+    tol = 10^-4
+    max_iter = 3*10^2
+    test = tol+1.0
+    
+    nodes = kalmanFilterSolver.valueFunction.baseValue.grid 
+    vals = zeros(length(nodes))
+        
+    vals0 = zeros(length(nodes))
+        
+    tol *=  length(nodes)
+    test *= length(nodes)
+    threadids = zeros(length(nodes))
+    iter = 0
+    print("here")
+    while (test > tol) && (iter < max_iter)
+        iter += 1
+        print(iter)
+        print(" ")
+        println(test)
+        
+        i = 0
+        # get updated values 
+        vals0 .= vals 
+        
+        Threads.@threads for i in 1:length(kalmanFilterSolver.valueFunction.baseValue.grid)
+            x = kalmanFilterSolver.valueFunction.baseValue.grid[i]
+            vals[i] = BellmanOpperators.obs_Bellman([x[1],x[2]],
+                            kalmanFilterSolver.obsBellmanIntermidiate[Threads.threadid()],
+                            kalmanFilterSolver.valueFunction.baseValue, 
+                            kalmanFilterSolver.POMDP)
+        end 
+        
+        # update value function 
+        test = sum((vals .- vals0).^2)
+        ValueFunctions.update_base!(kalmanFilterSolver.valueFunction,vals)
+    end 
+    
+    if iter < max_iter
+        kalmanFilterSolver.warnngs = "Observed model converged"
+        kalmanFilterSolver.algorithm = "two stage VFI: Observed model solved"
+    else 
+        kalmanFilterSolver.warnngs = "Observed model failed"
+        kalmanFilterSolver.algorithm = "Two stage VFI: Observed model failed"
+    end 
+    
+end
 
 ##############################################
 ###    Bellman opperator for full model    ###
@@ -175,7 +255,7 @@ end
 
 function solve(kalmanFilterSolver)
     tol = 10^-3
-    max_iter = 5*10^2
+    max_iter = 2*10^2
     test = tol+1.0
     
     nodes = kalmanFilterSolver.valueFunction.uncertantyAdjustment.nodes
@@ -201,7 +281,7 @@ function solve(kalmanFilterSolver)
                 print(i/length(nodes))
                 print(" ")
             end 
-            vals[i] = BellmanOpperators.Bellman!(s, kalmanFilterSolver.bellmanIntermidiate,
+            vals[i] = BellmanOpperators.Bellman!(s, kalmanFilterSolver.bellmanIntermidiate[Threads.theadid()],
                                         kalmanFilterSolver.POMDP, kalmanFilterSolver.valueFunction)
         end 
         # update value function 
@@ -217,6 +297,58 @@ function solve(kalmanFilterSolver)
         kalmanFilterSolver.algorithm = "Two stage VFI: full model failed"
     end 
 end 
+
+
+
+
+function solve_parallel(kalmanFilterSolver)
+    tol = 10^-3
+    max_iter = 5*10^2
+    test = tol+1.0
+    
+    nodes = kalmanFilterSolver.valueFunction.uncertantyAdjustment.nodes
+    vals = zeros(length(nodes)) 
+    vals0 = zeros(length(nodes))
+    tol *=  length(nodes)
+    test *= length(nodes)
+    
+    iter = 0
+
+    while (test > tol) && (iter < max_iter)
+        print(iter)
+        print(" ")
+        println(test)
+
+        iter += 1
+        i = 0
+        # get updated values 
+        vals0 .= vals
+        Threads.@threads for i in 1:length(nodes) 
+            s = nodes[i]
+#             if mod(i, 100) == 0
+#                 print(i/length(nodes))
+#                 print(" ")
+#             end 
+            vals[i] = BellmanOpperators.Bellman!(s, kalmanFilterSolver.bellmanIntermidiate[Threads.threadid()],
+                                        kalmanFilterSolver.POMDP, kalmanFilterSolver.valueFunction)
+        end 
+        # update value function 
+        test = sum((vals .- vals0).^2)
+        ValueFunctions.update_adjustment!(kalmanFilterSolver.valueFunction,vals)
+    end 
+    
+    if iter < max_iter
+        kalmanFilterSolver.warnngs = "Full model converged"
+        kalmanFilterSolver.algorithm = "two stage VFI: full model solved"
+    else 
+        kalmanFilterSolver.warnngs = "Full model failed"
+        kalmanFilterSolver.algorithm = "Two stage VFI: full model failed"
+    end 
+end 
+
+
+
+
 # function solve_parallel(kalmanFilterSolver)
 #     tol = 10^-4
 #     max_iter = 5*10^2

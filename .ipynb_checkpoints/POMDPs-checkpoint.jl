@@ -91,7 +91,7 @@ filter techniques.
 T! - xt+1 = T!(x+t,a) + epsilon_t deterministic state transition funciton
 R - R(x,a) 
 """
-struct POMDP_KalmanFilter
+struct POMDP_KalmanFilter{T}
     T!::Function # deterministic state transition function T(x,a) = x'
     T::Function
     actions::AbstractVector{AbstractVector{Float64}}
@@ -99,7 +99,7 @@ struct POMDP_KalmanFilter
     A::AbstractVector{Tuple{AbstractVector{Float64},AbstractVector{Float64}}}
     R::Function # reward function R(x,a) = r 
     R_obs::Function
-    H::Function # observaiton function 
+    H::T#Function # observaiton function 
     Sigma_N::AbstractMatrix{Float64} # process noise covariance  
     Sigma_O::Function # maps actions to covarinace matrix observaiton noise covariance 
     d_proc::Distribution{Multivariate,Continuous}
@@ -131,27 +131,27 @@ function generateFunctions(T!::Function, T::Function, H::Function,
     return T_sim!, d_proc, d_obs, G_sim, G
 end 
 
-# function init(T!::Function, T::Function,R::Function, H::Function,
-#               Sigma_N::AbstractMatrix{Float64}, Sigma_O::AbstractMatrix{Float64}, 
-#               delta::Float64, n_dims::Int64)
+function generateFunctions(T!::Function, T::Function, H::AbstractMatrix{Float64},
+              Sigma_N::AbstractMatrix{Float64}, Sigma_O::Function,
+            actions, observations )
     
-#     T_sim!, d_proc, d_obs, G_sim, G = generateFunctions(T!::Function, T::Function, H::Function,
-#               Sigma_N::AbstractMatrix{Float64}, Sigma_O::AbstractMatrix{Float64})
-    
-#     actions = continuousActions(n_dims)
-#     return POMDP_KalmanFilter{continuousActions}(T!, T, actions,R, H, Sigma_N, Sigma_O, d_proc, d_obs, T_sim!, G, G_sim, delta)  
-# end 
+    dx = size(Sigma_N)[1]
+    dy = size(Sigma_O(actions[1], observations[1]))[1]
 
-# function init(T!::Function, T::Function,R::Function, H::Function,
-#               Sigma_N::AbstractMatrix{Float64}, Sigma_O::AbstractMatrix{Float64}, 
-#               delta::Float64, n_dims::Int64, upper::AbstractVector{Float64}, lower::AbstractVector{Float64})
+    d_proc = Distributions.MvNormal(zeros(dx),Sigma_N) 
+
+    d_obs = (a,obs) -> Distributions.MvNormal(zeros(dy),Sigma_O(a, obs)) 
     
-#     T_sim!, d_proc, d_obs, G_sim, G = generateFunctions(T!::Function, T::Function, H::Function,
-#               Sigma_N::AbstractMatrix{Float64}, Sigma_O::AbstractMatrix{Float64})
+    function T_sim!(x,a)
+        T!(x,a)
+        x .+= reshape(rand(d_proc, 1),dx)
+    end 
     
-#     actions = boundedActions(n_dims,upper,lower)
-#     return POMDP_KalmanFilter{boundedActions}(T!, T, actions,R, H, Sigma_N, Sigma_O, d_proc, d_obs, T_sim!, G, G_sim, delta)  
-# end 
+    G_sim = (x,a,obs) -> H*x .+ reshape(rand(d_obs(a,obs), 1),dy,1)
+    G = (y,x,a,obs) -> pdf(d_obs(a,obs), y .- H)
+    return T_sim!, d_proc, d_obs, G_sim, G
+end 
+
 
 function init(T!::Function, T::Function,R::Function, R_obs::Function, H::Function,
               Sigma_N::AbstractMatrix{Float64}, Sigma_O::Function, 
@@ -163,7 +163,21 @@ function init(T!::Function, T::Function,R::Function, R_obs::Function, H::Functio
     
     A = reshape(collect(IterTools.product(actions, observations)), length(actions) * length(observations) )
     
-    return POMDP_KalmanFilter(T!, T, actions, observations, A, R, R_obs, H, Sigma_N, Sigma_O, d_proc, d_obs, T_sim!, G, G_sim, delta)  
+    return POMDP_KalmanFilter{Function}(T!, T, actions, observations, A, R, R_obs, H, Sigma_N, Sigma_O, d_proc, d_obs, T_sim!, G, G_sim, delta)  
+end 
+
+
+function init(T!::Function, T::Function,R::Function, R_obs::Function, H::AbstractMatrix{Float64},
+              Sigma_N::AbstractMatrix{Float64}, Sigma_O::Function, 
+              delta::Float64,actions, 
+              observations)#::AbstractVector{AbstractVector{Float64}}
+    
+    T_sim!, d_proc, d_obs, G_sim, G = generateFunctions(T!, T, H,
+              Sigma_N, Sigma_O, actions, observations)
+    
+    A = reshape(collect(IterTools.product(actions, observations)), length(actions) * length(observations) )
+    
+    return POMDP_KalmanFilter{AbstractMatrix{Float64}}(T!, T, actions, observations, A, R, R_obs, H, Sigma_N, Sigma_O, d_proc, d_obs, T_sim!, G, G_sim, delta)  
 end 
 
 

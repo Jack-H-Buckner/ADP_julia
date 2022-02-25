@@ -49,34 +49,42 @@ end
 
 # the nth degree chebyshev polynomial
 # evaluated at x
-function T(x,n)
+function T(x::Float64,n::Int64)
     return cos(n*acos(x))
 end 
 
     
+
 # the product of chebyshev polynomials
-function T_alpha_i(alpha_i,x)
-    return prod(T.(x,alpha_i)) 
+function T_alpha_i( alpha_i::NTuple{2,Int64},x::AbstractVector{Float64})
+    #return prod(T.(x,alpha_i)) 
+    v = 1.0
+    for i in 1:length(x)
+        v *= cos(alpha_i[i]*acos(x[i]))
+    end 
+    return v
 end
-    
+        
+function T_alpha_i( alpha_i::NTuple{5,Int64},x::AbstractVector{Float64})
+    #return prod(T.(x,alpha_i)) 
+    v = 1.0
+    for i in 1:length(x)
+        v *= cos(alpha_i[i]*acos(x[i]))
+    end 
+    return v
+end   
+
+            
+                    
 # the product of chebyshev polynomials
 # summed for each value of alpha
-function T_alpha(x,alpha, coefs)
-    T_i = broadcast(a -> T_alpha_i(a,x), alpha)
-    return sum(T_i .* coefs)
+function T_alpha!(v::AbstractVector{Float64},x::AbstractVector{Float64},alpha::AbstractVector{NTuple{2,Int64}}, coefs::AbstractVector{Float64})
+    for i in 1:length(alpha) v[i] = T_alpha_i(alpha[i],x) end
+    return sum(v .* coefs)
 end
-
-
-
-# the product of chebyshev polynomials
-function T_alpha_i!(v,alpha_i,x)
-    v .= prod(cos.(alpha_i.*acos.(x))) 
-end
-    
-# the product of chebyshev polynomials
-# summed for each value of alpha
-function T_alpha!(v,x,alpha, coefs)
-    broadcast(i -> T_alpha_i!(v[i],alpha[i],x), 1:length(alpha))
+                    
+function T_alpha!(v::AbstractVector{Float64},x::AbstractVector{Float64},alpha::AbstractVector{NTuple{5,Int64}}, coefs::AbstractVector{Float64})
+    for i in 1:length(alpha) v[i] = T_alpha_i(alpha[i],x) end
     return sum(v .* coefs)
 end
 
@@ -86,21 +94,29 @@ function collect_alpha(m,d)
     if d == 1
         alpha = 0:m
     elseif d == 2
-        alpha = Iterators.product(0:m,0:m)  
+        alpha = Iterators.product(0:m,0:m) 
+
     elseif d == 3
         alpha = Iterators.product(0:m,0:m,0:m)
+
     elseif d == 4
         alpha = Iterators.product(0:m,0:m,0:m,0:m)
+
     elseif d == 5
         alpha = Iterators.product(0:m,0:m,0:m,0:m,0:m)
+
     elseif d == 6
         alpha = Iterators.product(0:m,0:m,0:m,0:m,0:m,0:m)
+
     elseif d == 7
         alpha = Iterators.product(0:m,0:m,0:m,0:m,0:m,0:m,0:m)
     elseif d == 8
         alpha = Iterators.product(0:m,0:m,0:m,0:m,0:m,0:m,0:m,0:m)
     end
-    alpha = collect(alpha)[sum.(alpha) .<= m]
+
+    alpha = reshape(collect(alpha),(m+1)^d)
+    #alpha = broadcast(a -> broadcast(i -> a[i], 1:d), alpha)
+    alpha = alpha[sum.(alpha) .<= m]
     return alpha
 end
     
@@ -129,7 +145,9 @@ function collect_z(m,d)
     elseif d == 8
         z_array = Iterators.product(z,z,z,z,z,z,z) 
     end
-    return collect(z_array)
+    z_array = reshape(collect(z_array),m^d)
+    z_array = broadcast(z -> broadcast(i -> z[i], 1:d), z_array)
+    return z_array
 end
     
     
@@ -139,6 +157,7 @@ end
 # the nodes for each dimension 
 function collect_nodes(nodes)
     d = size(nodes)[2]
+    m = length(nodes[:,1])
     if d == 1
         z_array = z
     elseif d == 2
@@ -156,13 +175,15 @@ function collect_nodes(nodes)
     elseif d == 8
         z_array = Iterators.product(nodes[:,1],nodes[:,2],nodes[:,3],nodes[:,4],nodes[:,5],nodes[:,6],nodes[:,7],nodes[:,8]) 
     end
-    return collect(z_array)
+    z_array = reshape(collect(z_array),m^d)
+    z_array = broadcast(z -> broadcast(i -> z[i], 1:d), z_array)
+    return z_array
 end
 
-function compute_coefs(d,m,values,alpha)
+function compute_coefs(d,m,values,alpha,T_alpha_i_grid)
     # get size of 
-    @assert length(values) == m^d
-    @assert all(size(values) .== m)
+    #@assert length(values) == m^d
+    #@assert all(size(values) .== m)
     # get constants for each term
     d_bar = broadcast(alpha_i -> sum(alpha_i .> 0), alpha)
     c = 2 .^ d_bar ./(m^d)
@@ -170,10 +191,34 @@ function compute_coefs(d,m,values,alpha)
     z = collect_z(m,d) 
     # this is complicated. it initally broadcasts T_alpha_i over the grid z and takes the dot 
     # product with values array. It then broad casts this function over each set of valeus in alpha
+    
     vT_sums = broadcast(alpha_i -> sum(broadcast(x -> T_alpha_i(alpha_i,x), z).*values), alpha)   
+    
     return c.*vT_sums
 end 
     
+function compute_coefs1(d,m,values::AbstractVector{Float64},alpha::AbstractArray{NTuple{2,Int64}},T_alpha_grid::AbstractVector{AbstractVector{Float64}},
+        vT_sums::AbstractVector{Float64})
+    # get constants for each term
+    d_bar = broadcast(alpha_i -> sum(alpha_i .> 0), alpha)
+    c = 2 .^ d_bar ./(m^d)
+    # this is complicated. it initally broadcasts T_alpha_i over the grid z and takes the dot 
+    # product with values array. It then broad casts this function over each set of valeus in alpha 
+    for i in 1:length(T_alpha_grid) vT_sums[i] =  sum(T_alpha_grid[i].*values) end 
+    return c.*vT_sums
+end
+            
+function compute_coefs1(d,m,values::AbstractVector{Float64},alpha::AbstractArray{NTuple{5,Int64}},T_alpha_grid::AbstractVector{AbstractVector{Float64}},
+        vT_sums::AbstractVector{Float64})
+    # get constants for each term
+    d_bar = broadcast(alpha_i -> sum(alpha_i .> 0), alpha)
+    c = 2 .^ d_bar ./(m^d)
+    # this is complicated. it initally broadcasts T_alpha_i over the grid z and takes the dot 
+    # product with values array. It then broad casts this function over each set of valeus in alpha 
+    for i in 1:length(T_alpha_grid) vT_sums[i] =  sum(T_alpha_grid[i].*values) end 
+    return c.*vT_sums
+end
+
     
 # x is a d by nx matrix 
 function regression_matrix(x, polynomial)
