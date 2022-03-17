@@ -1,0 +1,404 @@
+==========================================
+SLURM_JOB_ID = 44967130
+SLURM_NODELIST = c8-73
+==========================================
+# load libraries
+using JLD2
+import Pkg; Pkg.add("Plots")
+using Plots
+# load modules
+include("/home/jhbuckne/ADP_julia/Examples.jl")
+include("/home/jhbuckne/ADP_julia/ValueFunctions.jl")
+include("/home/jhbuckne/ADP_julia/BeleifMDPSolvers.jl")
+include("/home/jhbuckne/ADP_julia/BellmanOpperators.jl")
+# load data
+@load "VF_dat.jld2" VF_dat
+
+
+pars = Examples.unknown_growth_rate_pars
+
+# load function and parameters from Examples
+T_! = (x,f) -> Examples.unknown_growth_rate_T!(x,f,pars)
+T_ = (x,f) -> Examples.unknown_growth_rate_T(x,f,pars)
+R = (x,f,obs) -> Examples.unknown_growth_rate_R(x,f,obs,pars)
+R_obs = (x,f) -> Examples.unknown_growth_rate_R_obs(x,f,pars)
+Sigma_N = Examples.Sigma_N
+H = (x,a,obs) -> Examples.H * x
+Sigma_O = (a,obs) -> reshape(Examples.Sigma_O(obs),1,1)
+delta = 0.95
+actions = Examples.unknown_growth_actions
+observations = Examples.unknown_growth_observations
+
+upper = Examples.unknown_growth_upper
+lower = Examples.unknown_growth_lower
+
+
+
+# set solver 
+solver1 = BeleifMDPSolvers.init(T_!, T_, R, R_obs, Examples.H, Sigma_N, Sigma_O,delta,actions,observations,lower,upper;
+            m_Quad_x = 7, m_Quad_y = 7,m_Quad = 3,
+            n_grids_obs = 5,n_grid = 5)
+
+# update value function 
+ValueFunctions.update_interpolation!(solver1.valueFunction.baseValue, VF_dat[1])
+ValueFunctions.update_interpolation!(solver1.valueFunction.uncertantyAdjustment.chebyshevInterpolation, VF_dat[2])
+
+
+# plot value function 
+n_grid = 5
+sol = solver1
+act = broadcast(x -> BellmanOpperators.obs_Policy(x, sol.obsBellmanIntermidiate[1],sol.valueFunction.baseValue, sol.POMDP, sol.optimizer),
+solver1.valueFunction.baseValue.grid)
+act = broadcast(x -> x[1],act)
+act = reshape(act, n_grid,n_grid)
+x = reshape(broadcast( x ->x[1], sol.valueFunction.baseValue.grid),n_grid,n_grid)
+p = Plots.plot(exp.(x[:,1]), act[:,1], label = "1", legend =:topleft,color = RGBA(1/n_grid,1-1/n_grid,1,0.5))
+for i in 2:n_grid
+    Plots.plot!(p,exp.(x[:,n_grid]),act[:,i], label = string(i),color = RGBA(i/n_grid,1-i/n_grid,1,0.5))
+end 
+
+savefig(p,"base_value_function.png")
+ok now for the actual standard output
+Module julia/1.7.0 loaded 
+qt.qpa.xcb: could not connect to display 
+qt.qpa.plugin: Could not load the Qt platform plugin "xcb" in "" even though it was found.
+This application failed to start because no Qt platform plugin could be initialized. Reinstalling the application may fix this problem.
+
+Available platform plugins are: linuxfb, minimal, offscreen, vnc, xcb.
+
+Aborted
+connect: Connection refused
+GKS: can't connect to GKS socket application
+
+GKS: Open failed in routine OPEN_WS
+GKS: GKS not in proper state. GKS must be either in the state WSOP or WSAC in routine ACTIVATE_WS
+    Updating registry at `~/.julia/registries/General.toml`
+   Resolving package versions...
+   Installed Libmount_jll ───────────────── v2.35.0+0
+   Installed libfdk_aac_jll ─────────────── v2.0.2+0
+   Installed GR_jll ─────────────────────── v0.64.0+0
+   Installed JpegTurbo_jll ──────────────── v2.1.2+0
+   Installed Opus_jll ───────────────────── v1.3.2+0
+   Installed x265_jll ───────────────────── v3.5.0+0
+   Installed LERC_jll ───────────────────── v3.0.0+1
+   Installed Xorg_xkbcomp_jll ───────────── v1.4.2+4
+   Installed EarCut_jll ─────────────────── v2.2.3+0
+   Installed Grisu ──────────────────────── v1.0.2
+   Installed Measures ───────────────────── v0.3.1
+   Installed RelocatableFolders ─────────── v0.1.3
+   Installed Contour ────────────────────── v0.5.7
+   Installed Xorg_xcb_util_wm_jll ───────── v0.4.1+1
+   Installed Formatting ─────────────────── v0.4.2
+   Installed Xorg_xcb_util_image_jll ────── v0.4.0+1
+   Installed Xorg_libpthread_stubs_jll ──── v0.1.0+3
+   Installed PlotUtils ──────────────────── v1.1.3
+   Installed RecipesPipeline ────────────── v0.5.1
+   Installed ColorSchemes ───────────────── v3.17.1
+   Installed Cairo_jll ──────────────────── v1.16.1+1
+   Installed Xorg_xcb_util_jll ──────────── v0.4.0+1
+   Installed Libgpg_error_jll ───────────── v1.42.0+0
+   Installed Fontconfig_jll ─────────────── v2.13.93+0
+   Installed Xorg_libxkbfile_jll ────────── v1.1.0+4
+   Installed Xorg_libXinerama_jll ───────── v1.1.4+4
+   Installed GR ─────────────────────────── v0.64.0
+   Installed HTTP ───────────────────────── v0.9.17
+   Installed Xorg_libXau_jll ────────────── v1.0.9+4
+   Installed FFMPEG ─────────────────────── v0.4.1
+   Installed Xorg_xcb_util_keysyms_jll ──── v0.4.0+1
+   Installed xkbcommon_jll ──────────────── v0.9.1+5
+   Installed Qt5Base_jll ────────────────── v5.15.3+0
+   Installed Bzip2_jll ──────────────────── v1.0.8+0
+   Installed Showoff ────────────────────── v1.0.3
+   Installed JSON ───────────────────────── v0.21.3
+   Installed HarfBuzz_jll ───────────────── v2.8.1+1
+   Installed PlotThemes ─────────────────── v2.0.1
+   Installed LZO_jll ────────────────────── v2.10.1+0
+   Installed GLFW_jll ───────────────────── v3.3.6+0
+   Installed FriBidi_jll ────────────────── v1.0.10+0
+   Installed UnicodeFun ─────────────────── v0.4.1
+   Installed MbedTLS ────────────────────── v1.0.3
+   Installed x264_jll ───────────────────── v2021.5.5+0
+   Installed FreeType2_jll ──────────────── v2.10.4+0
+   Installed Colors ─────────────────────── v0.12.8
+   Installed Xorg_libxcb_jll ────────────── v1.13.0+3
+   Installed libpng_jll ─────────────────── v1.6.38+0
+   Installed Scratch ────────────────────── v1.1.0
+   Installed Zstd_jll ───────────────────── v1.5.2+0
+   Installed Xorg_libXext_jll ───────────── v1.3.4+4
+   Installed ColorTypes ─────────────────── v0.11.0
+   Installed Expat_jll ──────────────────── v2.4.4+0
+   Installed Parsers ────────────────────── v2.2.3
+   Installed TableTraits ────────────────── v1.0.1
+   Installed Plots ──────────────────────── v1.26.1
+   Installed Libtiff_jll ────────────────── v4.3.0+1
+   Installed PCRE_jll ───────────────────── v8.44.0+0
+   Installed DataValueInterfaces ────────── v1.0.0
+   Installed Libffi_jll ─────────────────── v3.2.2+1
+   Installed Xorg_libXrender_jll ────────── v0.9.10+4
+   Installed Ogg_jll ────────────────────── v1.3.5+1
+   Installed Xorg_libXi_jll ─────────────── v1.7.10+4
+   Installed XSLT_jll ───────────────────── v1.1.34+0
+   Installed Xorg_libXcursor_jll ────────── v1.2.0+4
+   Installed Libuuid_jll ────────────────── v2.36.0+0
+   Installed Wayland_protocols_jll ──────── v1.25.0+0
+   Installed libass_jll ─────────────────── v0.15.1+0
+   Installed Pixman_jll ─────────────────── v0.40.1+0
+   Installed Xorg_xcb_util_renderutil_jll ─ v0.3.9+1
+   Installed Graphite2_jll ──────────────── v1.3.14+0
+   Installed Adapt ──────────────────────── v3.3.3
+   Installed XML2_jll ───────────────────── v2.9.12+0
+   Installed Wayland_jll ────────────────── v1.19.0+0
+   Installed OpenSSL_jll ────────────────── v1.1.13+0
+   Installed Xorg_xtrans_jll ────────────── v1.4.0+3
+   Installed FFMPEG_jll ─────────────────── v4.4.0+0
+   Installed Gettext_jll ────────────────── v0.21.0+0
+   Installed GeometryBasics ─────────────── v0.4.2
+   Installed Latexify ───────────────────── v0.15.13
+   Installed Libgcrypt_jll ──────────────── v1.8.7+0
+   Installed Xorg_xkeyboard_config_jll ──── v2.27.0+4
+   Installed Xorg_libXfixes_jll ─────────── v5.0.3+4
+   Installed Xorg_libXrandr_jll ─────────── v1.5.2+4
+   Installed LAME_jll ───────────────────── v3.100.1+0
+   Installed FixedPointNumbers ──────────── v0.8.4
+   Installed Tables ─────────────────────── v1.7.0
+   Installed RecipesBase ────────────────── v1.2.1
+   Installed IteratorInterfaceExtensions ── v1.0.0
+   Installed Libiconv_jll ───────────────── v1.16.1+1
+   Installed Glib_jll ───────────────────── v2.68.3+2
+   Installed libvorbis_jll ──────────────── v1.3.7+1
+   Installed IniFile ────────────────────── v0.5.1
+   Installed LaTeXStrings ───────────────── v1.3.0
+   Installed StructArrays ───────────────── v0.6.5
+   Installed URIs ───────────────────────── v1.3.0
+   Installed Libglvnd_jll ───────────────── v1.3.0+3
+   Installed Xorg_libX11_jll ────────────── v1.6.9+4
+   Installed Xorg_libXdmcp_jll ──────────── v1.1.3+4
+   Installed Unzip ──────────────────────── v0.1.2
+    Updating `~/.julia/environments/v1.7/Project.toml`
+  [91a5bcdd] + Plots v1.26.1
+    Updating `~/.julia/environments/v1.7/Manifest.toml`
+  [79e6a3ab] + Adapt v3.3.3
+  [35d6a980] + ColorSchemes v3.17.1
+  [3da002f7] + ColorTypes v0.11.0
+  [5ae59095] + Colors v0.12.8
+  [d38c429a] + Contour v0.5.7
+  [e2d170a0] + DataValueInterfaces v1.0.0
+  [c87230d0] + FFMPEG v0.4.1
+  [53c48c17] + FixedPointNumbers v0.8.4
+  [59287772] + Formatting v0.4.2
+  [28b8d3ca] + GR v0.64.0
+  [5c1252a2] + GeometryBasics v0.4.2
+  [42e2da0e] + Grisu v1.0.2
+  [cd3eb016] + HTTP v0.9.17
+  [83e8ac13] + IniFile v0.5.1
+  [82899510] + IteratorInterfaceExtensions v1.0.0
+  [682c06a0] + JSON v0.21.3
+  [b964fa9f] + LaTeXStrings v1.3.0
+  [23fbe1c1] + Latexify v0.15.13
+  [739be429] + MbedTLS v1.0.3
+  [442fdcdd] + Measures v0.3.1
+  [69de0a69] + Parsers v2.2.3
+  [ccf2f8ad] + PlotThemes v2.0.1
+  [995b91a9] + PlotUtils v1.1.3
+  [91a5bcdd] + Plots v1.26.1
+  [3cdcf5f2] + RecipesBase v1.2.1
+  [01d81517] + RecipesPipeline v0.5.1
+  [05181044] + RelocatableFolders v0.1.3
+  [6c6a2e73] + Scratch v1.1.0
+  [992d4aef] + Showoff v1.0.3
+  [09ab397b] + StructArrays v0.6.5
+  [3783bdb8] + TableTraits v1.0.1
+  [bd369af6] + Tables v1.7.0
+  [5c2747f8] + URIs v1.3.0
+  [1cfade01] + UnicodeFun v0.4.1
+  [41fe7b60] + Unzip v0.1.2
+  [6e34b625] + Bzip2_jll v1.0.8+0
+  [83423d85] + Cairo_jll v1.16.1+1
+  [5ae413db] + EarCut_jll v2.2.3+0
+  [2e619515] + Expat_jll v2.4.4+0
+  [b22a6f82] + FFMPEG_jll v4.4.0+0
+  [a3f928ae] + Fontconfig_jll v2.13.93+0
+  [d7e528f0] + FreeType2_jll v2.10.4+0
+  [559328eb] + FriBidi_jll v1.0.10+0
+  [0656b61e] + GLFW_jll v3.3.6+0
+  [d2c73de3] + GR_jll v0.64.0+0
+  [78b55507] + Gettext_jll v0.21.0+0
+  [7746bdde] + Glib_jll v2.68.3+2
+  [3b182d85] + Graphite2_jll v1.3.14+0
+  [2e76f6c2] + HarfBuzz_jll v2.8.1+1
+  [aacddb02] + JpegTurbo_jll v2.1.2+0
+  [c1c5ebd0] + LAME_jll v3.100.1+0
+  [88015f11] + LERC_jll v3.0.0+1
+  [dd4b983a] + LZO_jll v2.10.1+0
+  [e9f186c6] + Libffi_jll v3.2.2+1
+  [d4300ac3] + Libgcrypt_jll v1.8.7+0
+  [7e76a0d4] + Libglvnd_jll v1.3.0+3
+  [7add5ba3] + Libgpg_error_jll v1.42.0+0
+  [94ce4f54] + Libiconv_jll v1.16.1+1
+  [4b2f31a3] + Libmount_jll v2.35.0+0
+  [89763e89] + Libtiff_jll v4.3.0+1
+  [38a345b3] + Libuuid_jll v2.36.0+0
+  [e7412a2a] + Ogg_jll v1.3.5+1
+  [458c3c95] + OpenSSL_jll v1.1.13+0
+  [91d4177d] + Opus_jll v1.3.2+0
+  [2f80f16e] + PCRE_jll v8.44.0+0
+  [30392449] + Pixman_jll v0.40.1+0
+  [ea2cea3b] + Qt5Base_jll v5.15.3+0
+  [a2964d1f] + Wayland_jll v1.19.0+0
+  [2381bf8a] + Wayland_protocols_jll v1.25.0+0
+  [02c8fc9c] + XML2_jll v2.9.12+0
+  [aed1982a] + XSLT_jll v1.1.34+0
+  [4f6342f7] + Xorg_libX11_jll v1.6.9+4
+  [0c0b7dd1] + Xorg_libXau_jll v1.0.9+4
+  [935fb764] + Xorg_libXcursor_jll v1.2.0+4
+  [a3789734] + Xorg_libXdmcp_jll v1.1.3+4
+  [1082639a] + Xorg_libXext_jll v1.3.4+4
+  [d091e8ba] + Xorg_libXfixes_jll v5.0.3+4
+  [a51aa0fd] + Xorg_libXi_jll v1.7.10+4
+  [d1454406] + Xorg_libXinerama_jll v1.1.4+4
+  [ec84b674] + Xorg_libXrandr_jll v1.5.2+4
+  [ea2f1a96] + Xorg_libXrender_jll v0.9.10+4
+  [14d82f49] + Xorg_libpthread_stubs_jll v0.1.0+3
+  [c7cfdc94] + Xorg_libxcb_jll v1.13.0+3
+  [cc61e674] + Xorg_libxkbfile_jll v1.1.0+4
+  [12413925] + Xorg_xcb_util_image_jll v0.4.0+1
+  [2def613f] + Xorg_xcb_util_jll v0.4.0+1
+  [975044d2] + Xorg_xcb_util_keysyms_jll v0.4.0+1
+  [0d47668e] + Xorg_xcb_util_renderutil_jll v0.3.9+1
+  [c22f9ab0] + Xorg_xcb_util_wm_jll v0.4.1+1
+  [35661453] + Xorg_xkbcomp_jll v1.4.2+4
+  [33bec58e] + Xorg_xkeyboard_config_jll v2.27.0+4
+  [c5fb5394] + Xorg_xtrans_jll v1.4.0+3
+  [3161d3a3] + Zstd_jll v1.5.2+0
+  [0ac62f75] + libass_jll v0.15.1+0
+  [f638f0a6] + libfdk_aac_jll v2.0.2+0
+  [b53b4c65] + libpng_jll v1.6.38+0
+  [f27f6e37] + libvorbis_jll v1.3.7+1
+  [1270edf5] + x264_jll v2021.5.5+0
+  [dfaa095f] + x265_jll v3.5.0+0
+  [d8fb68d0] + xkbcommon_jll v0.9.1+5
+    Building GR → `~/.julia/scratchspaces/44cfe95a-1eb2-52ea-b672-e2afdf69b78f/9f836fb62492f4b0f0d3b06f55983f2704ed0883/build.log`
+Precompiling project...
+[32m  ✓ [39m[90mIteratorInterfaceExtensions[39m
+[32m  ✓ [39m[90mDataValueInterfaces[39m
+[32m  ✓ [39m[90mLaTeXStrings[39m
+[32m  ✓ [39m[90mIniFile[39m
+[32m  ✓ [39m[90mUnzip[39m
+[32m  ✓ [39m[90mScratch[39m
+[32m  ✓ [39m[90mMeasures[39m
+[32m  ✓ [39m[90mAdapt[39m
+[32m  ✓ [39m[90mFormatting[39m
+[32m  ✓ [39m[90mURIs[39m
+[32m  ✓ [39m[90mRecipesBase[39m
+[32m  ✓ [39m[90mUnicodeFun[39m
+[32m  ✓ [39m[90mGrisu[39m
+[32m  ✓ [39m[90mLibmount_jll[39m
+[32m  ✓ [39m[90mOpenSSL_jll[39m
+[32m  ✓ [39m[90mGraphite2_jll[39m
+[32m  ✓ [39m[90mBzip2_jll[39m
+[32m  ✓ [39m[90mXorg_libXau_jll[39m
+[32m  ✓ [39m[90mlibpng_jll[39m
+[32m  ✓ [39m[90mlibfdk_aac_jll[39m
+[32m  ✓ [39m[90mMbedTLS[39m
+[32m  ✓ [39m[90mPixman_jll[39m
+[32m  ✓ [39m[90mLAME_jll[39m
+[32m  ✓ [39m[90mEarCut_jll[39m
+[32m  ✓ [39m[90mContour[39m
+[32m  ✓ [39m[90mJpegTurbo_jll[39m
+[32m  ✓ [39m[90mLERC_jll[39m
+[32m  ✓ [39m[90mOgg_jll[39m
+[32m  ✓ [39m[90mXorg_libXdmcp_jll[39m
+[32m  ✓ [39m[90mx265_jll[39m
+[32m  ✓ [39m[90mx264_jll[39m
+[32m  ✓ [39m[90mZstd_jll[39m
+[32m  ✓ [39m[90mWayland_protocols_jll[39m
+[32m  ✓ [39m[90mExpat_jll[39m
+[32m  ✓ [39m[90mLZO_jll[39m
+[32m  ✓ [39m[90mXorg_xtrans_jll[39m
+[32m  ✓ [39m[90mOpus_jll[39m
+[32m  ✓ [39m[90mTableTraits[39m
+[32m  ✓ [39m[90mFixedPointNumbers[39m
+[32m  ✓ [39m[90mRelocatableFolders[39m
+[32m  ✓ [39m[90mLibiconv_jll[39m
+[32m  ✓ [39m[90mLibffi_jll[39m
+[32m  ✓ [39m[90mShowoff[39m
+[32m  ✓ [39m[90mLibgpg_error_jll[39m
+[32m  ✓ [39m[90mPCRE_jll[39m
+[32m  ✓ [39m[90mXorg_libpthread_stubs_jll[39m
+[32m  ✓ [39m[90mLibuuid_jll[39m
+[32m  ✓ [39m[90mFriBidi_jll[39m
+[32m  ✓ [39m[90mFreeType2_jll[39m
+[32m  ✓ [39m[90mlibvorbis_jll[39m
+[32m  ✓ [39m[90mLibtiff_jll[39m
+[32m  ✓ [39m[90mLibgcrypt_jll[39m
+[32m  ✓ [39m[90mTables[39m
+[32m  ✓ [39m[90mXML2_jll[39m
+[32m  ✓ [39m[90mLatexify[39m
+[32m  ✓ [39m[90mFontconfig_jll[39m
+[32m  ✓ [39m[90mWayland_jll[39m
+[32m  ✓ [39m[90mXSLT_jll[39m
+[32m  ✓ [39m[90mGettext_jll[39m
+[32m  ✓ [39m[90mXorg_libxcb_jll[39m
+[32m  ✓ [39m[90mHTTP[39m
+[32m  ✓ [39m[90mGlib_jll[39m
+[32m  ✓ [39m[90mStructArrays[39m
+[32m  ✓ [39m[90mXorg_libX11_jll[39m
+[32m  ✓ [39m[90mXorg_xcb_util_jll[39m
+[32m  ✓ [39m[90mXorg_libXext_jll[39m
+[32m  ✓ [39m[90mXorg_libXfixes_jll[39m
+[32m  ✓ [39m[90mXorg_libXrender_jll[39m
+[32m  ✓ [39m[90mXorg_libxkbfile_jll[39m
+[32m  ✓ [39m[90mXorg_xcb_util_keysyms_jll[39m
+[32m  ✓ [39m[90mXorg_xcb_util_wm_jll[39m
+[32m  ✓ [39m[90mXorg_xcb_util_renderutil_jll[39m
+[32m  ✓ [39m[90mXorg_xcb_util_image_jll[39m
+[32m  ✓ [39m[90mXorg_libXi_jll[39m
+[32m  ✓ [39m[90mXorg_libXinerama_jll[39m
+[32m  ✓ [39m[90mLibglvnd_jll[39m
+[32m  ✓ [39m[90mXorg_libXrandr_jll[39m
+[32m  ✓ [39m[90mXorg_libXcursor_jll[39m
+[32m  ✓ [39m[90mXorg_xkbcomp_jll[39m
+[32m  ✓ [39m[90mCairo_jll[39m
+[32m  ✓ [39m[90mXorg_xkeyboard_config_jll[39m
+[32m  ✓ [39m[90mGLFW_jll[39m
+[32m  ✓ [39m[90mHarfBuzz_jll[39m
+[32m  ✓ [39m[90mxkbcommon_jll[39m
+[32m  ✓ [39m[90mlibass_jll[39m
+[32m  ✓ [39m[90mQt5Base_jll[39m
+[32m  ✓ [39m[90mFFMPEG_jll[39m
+[32m  ✓ [39m[90mFFMPEG[39m
+[32m  ✓ [39m[90mGR_jll[39m
+[32m  ✓ [39m[90mGeometryBasics[39m
+[32m  ✓ [39m[90mColorTypes[39m
+[32m  ✓ [39m[90mColors[39m
+[32m  ✓ [39m[90mColorSchemes[39m
+[32m  ✓ [39m[90mPlotUtils[39m
+[32m  ✓ [39m[90mRecipesPipeline[39m
+[32m  ✓ [39m[90mPlotThemes[39m
+[32m  ✓ [39m[90mParsers[39m
+[32m  ✓ [39m[90mJSON[39m
+[32m  ✓ [39m[90mGR[39m
+[32m  ✓ [39mPlots
+  100 dependencies successfully precompiled in 241 seconds (53 already precompiled)
+Name                : tests
+User                : jhbuckne
+Account             : adamgrp
+Partition           : med
+Nodes               : c8-73
+Cores               : 1
+GPUs                : 0
+State               : COMPLETED
+ExitCode            : 0:0
+Submit              : 2022-03-11T08:44:01
+Start               : 2022-03-11T08:44:02
+End                 : 2022-03-11T08:50:39
+Waited              : 00:00:01
+Reserved walltime   : 00:30:00
+Used walltime       : 00:06:37
+Used CPU time       : 00:08:48
+% User (Computation): 93.46%
+% System (I/O)      :  6.54%
+Mem reserved        : 2000M/core
+Max Mem used        : 1.69G (c8-73)
+Max Disk Write      : 10.24K (c8-73)
+Max Disk Read       : 2.08M (c8-73)

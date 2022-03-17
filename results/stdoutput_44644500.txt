@@ -1,0 +1,30 @@
+==========================================
+SLURM_JOB_ID = 44644500
+SLURM_NODELIST = c8-63
+==========================================
+cat: run.R: No such file or directory
+ok now for the actual standard output
+Module julia/1.7.0 loaded 
+slurmstepd: error: *** JOB 44644500 ON c8-63 CANCELLED AT 2022-03-08T07:33:14 DUE TO TIME LIMIT ***
+Name                : tests
+User                : jhbuckne
+Account             : adamgrp
+Partition           : med
+Nodes               : c8-63
+Cores               : 1
+GPUs                : 0
+State               : TIMEOUT
+ExitCode            : 0:0
+Submit              : 2022-03-08T07:32:08
+Start               : 2022-03-08T07:32:11
+End                 : 2022-03-08T07:33:14
+Waited              : 00:00:03
+Reserved walltime   : 00:01:00
+Used walltime       : 00:01:03
+Used CPU time       : 00:00:00
+% User (Computation): --
+% System (I/O)      : --
+Mem reserved        : 2000M/core
+Max Mem used        : 0.00  (c8-63)
+Max Disk Write      : 0.00  (c8-63)
+Max Disk Read       : 0.00  (c8-63)

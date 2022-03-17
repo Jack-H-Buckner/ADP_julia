@@ -1,0 +1,90 @@
+==========================================
+SLURM_JOB_ID = 44967039
+SLURM_NODELIST = c8-73
+==========================================
+# load libraries
+using JLD2
+using Plots
+# load modules
+include("/home/jhbuckne/ADP_julia/Examples.jl")
+include("/home/jhbuckne/ADP_julia/ValueFunctions.jl")
+include("/home/jhbuckne/ADP_julia/BeleifMDPSolvers.jl")
+include("/home/jhbuckne/ADP_julia/BellmanOpperators.jl")
+# load data
+@load "VF_dat.jld2" VF_dat
+
+
+pars = Examples.unknown_growth_rate_pars
+
+# load function and parameters from Examples
+T_! = (x,f) -> Examples.unknown_growth_rate_T!(x,f,pars)
+T_ = (x,f) -> Examples.unknown_growth_rate_T(x,f,pars)
+R = (x,f,obs) -> Examples.unknown_growth_rate_R(x,f,obs,pars)
+R_obs = (x,f) -> Examples.unknown_growth_rate_R_obs(x,f,pars)
+Sigma_N = Examples.Sigma_N
+H = (x,a,obs) -> Examples.H * x
+Sigma_O = (a,obs) -> reshape(Examples.Sigma_O(obs),1,1)
+delta = 0.95
+actions = Examples.unknown_growth_actions
+observations = Examples.unknown_growth_observations
+
+upper = Examples.unknown_growth_upper
+lower = Examples.unknown_growth_lower
+
+
+
+# set solver 
+solver1 = BeleifMDPSolvers.init(T_!, T_, R, R_obs, Examples.H, Sigma_N, Sigma_O,delta,actions,observations,lower,upper;
+            m_Quad_x = 7, m_Quad_y = 7,m_Quad = 3,
+            n_grids_obs = 5,n_grid = 5)
+
+# update value function 
+ValueFunctions.update_interpolation!(solver1.valueFunction.baseValue, VF_dat[1])
+ValueFunctions.update_interpolation!(solver1.valueFunction.uncertantyAdjustment.chebyshevInterpolation, VF_dat[2])
+
+
+# plot value function 
+n_grid = 5
+sol = solver1
+act = broadcast(x -> BellmanOpperators.obs_Policy(x, sol.obsBellmanIntermidiate[1],sol.valueFunction.baseValue, sol.POMDP, sol.optimizer),
+solver1.valueFunction.baseValue.grid)
+act = broadcast(x -> x[1],act)
+act = reshape(act, n_grid,n_grid)
+x = reshape(broadcast( x ->x[1], sol.valueFunction.baseValue.grid),n_grid,n_grid)
+p = Plots.plot(exp.(x[:,1]), act[:,1], label = "1", legend =:topleft,color = RGBA(1/n_grid,1-1/n_grid,1,0.5))
+for i in 2:n_grid
+    Plots.plot!(p,exp.(x[:,n_grid]),act[:,i], label = string(i),color = RGBA(i/n_grid,1-i/n_grid,1,0.5))
+end 
+
+savefig(p,"base_value_function.png")
+ok now for the actual standard output
+Module julia/1.7.0 loaded 
+ERROR: LoadError: ArgumentError: Package Plots not found in current path:
+- Run `import Pkg; Pkg.add("Plots")` to install the Plots package.
+
+Stacktrace:
+ [1] require(into::Module, mod::Symbol)
+   @ Base ./loading.jl:967
+in expression starting at /home/jhbuckne/ADP_julia/Farm_Runs/unknown_growth_rate_baseparams/load_model.jl:3
+Name                : tests
+User                : jhbuckne
+Account             : adamgrp
+Partition           : med
+Nodes               : c8-73
+Cores               : 1
+GPUs                : 0
+State               : FAILED
+ExitCode            : 1:0
+Submit              : 2022-03-11T08:42:59
+Start               : 2022-03-11T08:43:03
+End                 : 2022-03-11T08:43:08
+Waited              : 00:00:04
+Reserved walltime   : 00:30:00
+Used walltime       : 00:00:05
+Used CPU time       : 00:00:03
+% User (Computation): 88.49%
+% System (I/O)      : 11.51%
+Mem reserved        : 2000M/core
+Max Mem used        : 0.00  (c8-73)
+Max Disk Write      : 0.00  (c8-73)
+Max Disk Read       : 0.00  (c8-73)

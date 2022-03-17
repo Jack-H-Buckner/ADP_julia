@@ -1,0 +1,73 @@
+==========================================
+SLURM_JOB_ID = 44645101
+SLURM_NODELIST = c8-63
+==========================================
+# test loading libraries
+import Pkg
+Pkg.add("Distributions")
+Pkg.add("Roots")
+Pkg.add("KalmanFilters")
+Pkg.add("LinearAlgebra")
+Pkg.add("IterTools")
+Pkg.add("FastGaussQuadrature")
+Pkg.add("StatsBase")
+
+# load modules 
+include("Examples.jl")
+include("BeleifMDPSolvers.jl")
+
+# test multithreading
+threads = zeros(25)
+Threads.@threads for i = 1:25
+        threads[i] =Threads.threadid()
+end
+println(threads)
+print("test")
+
+ok now for the actual standard output
+Module julia/1.7.0 loaded 
+    Updating registry at `~/.julia/registries/General.toml`
+   Resolving package versions...
+  No Changes to `~/.julia/environments/v1.7/Project.toml`
+  No Changes to `~/.julia/environments/v1.7/Manifest.toml`
+   Resolving package versions...
+  No Changes to `~/.julia/environments/v1.7/Project.toml`
+  No Changes to `~/.julia/environments/v1.7/Manifest.toml`
+   Resolving package versions...
+  No Changes to `~/.julia/environments/v1.7/Project.toml`
+  No Changes to `~/.julia/environments/v1.7/Manifest.toml`
+   Resolving package versions...
+  No Changes to `~/.julia/environments/v1.7/Project.toml`
+  No Changes to `~/.julia/environments/v1.7/Manifest.toml`
+   Resolving package versions...
+  No Changes to `~/.julia/environments/v1.7/Project.toml`
+  No Changes to `~/.julia/environments/v1.7/Manifest.toml`
+   Resolving package versions...
+  No Changes to `~/.julia/environments/v1.7/Project.toml`
+  No Changes to `~/.julia/environments/v1.7/Manifest.toml`
+   Resolving package versions...
+  No Changes to `~/.julia/environments/v1.7/Project.toml`
+  No Changes to `~/.julia/environments/v1.7/Manifest.toml`
+[1.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0, 17.0, 18.0, 19.0, 20.0, 21.0, 22.0, 23.0, 24.0]
+testName                : tests
+User                : jhbuckne
+Account             : adamgrp
+Partition           : med
+Nodes               : c8-63
+Cores               : 1
+GPUs                : 0
+State               : COMPLETED
+ExitCode            : 0:0
+Submit              : 2022-03-08T07:55:13
+Start               : 2022-03-08T07:55:15
+End                 : 2022-03-08T07:55:32
+Waited              : 00:00:02
+Reserved walltime   : 00:01:00
+Used walltime       : 00:00:17
+Used CPU time       : 00:00:16
+% User (Computation): 92.16%
+% System (I/O)      :  7.84%
+Mem reserved        : 2000M/core
+Max Mem used        : 12.00K (c8-63)
+Max Disk Write      : 0.00  (c8-63)
+Max Disk Read       : 0.00  (c8-63)

@@ -1,0 +1,30 @@
+==========================================
+SLURM_JOB_ID = 44637209
+SLURM_NODELIST = c8-88
+==========================================
+cat: run.R: No such file or directory
+ok now for the actual standard output
+Module julia/1.7.0 loaded 
+Do I work?
+Name                : tests
+User                : jhbuckne
+Account             : adamgrp
+Partition           : med
+Nodes               : c8-88
+Cores               : 1
+GPUs                : 0
+State               : COMPLETED
+ExitCode            : 0:0
+Submit              : 2022-03-07T20:46:37
+Start               : 2022-03-07T20:46:38
+End                 : 2022-03-07T20:46:40
+Waited              : 00:00:01
+Reserved walltime   : 00:01:00
+Used walltime       : 00:00:02
+Used CPU time       : 00:00:00
+% User (Computation): 54.59%
+% System (I/O)      :  0.00%
+Mem reserved        : 2000M/core
+Max Mem used        : 0.00  (c8-88)
+Max Disk Write      : 0.00  (c8-88)
+Max Disk Read       : 0.00  (c8-88)

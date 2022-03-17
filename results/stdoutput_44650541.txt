@@ -1,0 +1,77 @@
+==========================================
+SLURM_JOB_ID = 44650541
+SLURM_NODELIST = c10-88
+==========================================
+# test loading libraries
+import Pkg
+Pkg.add("Distributions")
+Pkg.add("Roots")
+Pkg.add("KalmanFilters")
+Pkg.add("LinearAlgebra")
+Pkg.add("IterTools")
+Pkg.add("FastGaussQuadrature")
+Pkg.add("StatsBase")
+Pkg.add("JLD2")
+
+#import libraries
+using JLD2
+
+# load modules 
+include("Examples.jl")
+include("ValueFunctions.jl")
+include("BeleifMDPSolvers.jl")
+
+
+# set parameters 
+pars = Examples.unknown_growth_rate_pars
+
+T_! = (x,f) -> Examples.unknown_growth_rate_T!(x,f,pars)
+T_ = (x,f) -> Examples.unknown_growth_rate_T(x,f,pars)
+R = (x,f,obs) -> Examples.unknown_growth_rate_R(x,f,obs,pars)
+R_obs = (x,f) -> Examples.unknown_growth_rate_R_obs(x,f,pars)
+Sigma_N = Examples.Sigma_N
+H = (x,a,obs) -> Examples.H * x
+Sigma_O = (a,obs) -> reshape(Examples.Sigma_O(obs),1,1)
+delta = 0.95
+actions = Examples.unknown_growth_actions
+observations = Examples.unknown_growth_observations
+
+upper = Examples.unknown_growth_upper
+lower = Examples.unknown_growth_lower
+
+# define solver 
+solver1 = BeleifMDPSolvers.init(T_!, T_, R, R_obs, Examples.H, Sigma_N, Sigma_O,delta,actions,observations,lower,upper;
+            m_Quad_x = 7, m_Quad_y = 7,m_Quad = 9,
+            n_grids_obs = 25,n_grid = 7)
+
+# solve observed system 
+BeleifMDPSolvers.solve_observed_parallel(solver1)
+
+# save output
+save_object("data/unknownGrowthGateSolver.jld2", solver1)
+ok now for the actual standard output
+Module julia/1.7.0 loaded 
+/var/spool/slurmd/job44650541/slurm_script: line 32: 20815 Killed                  julia -t 24 run_unknownGrowthRate.jl
+slurmstepd: error: Detected 1 oom-kill event(s) in StepId=44650541.batch cgroup. Some of your processes may have been killed by the cgroup out-of-memory handler.
+Name                : tests
+User                : jhbuckne
+Account             : adamgrp
+Partition           : high
+Nodes               : c10-88
+Cores               : 1
+GPUs                : 0
+State               : OUT_OF_MEMORY
+ExitCode            : 0:125
+Submit              : 2022-03-08T10:52:35
+Start               : 2022-03-08T10:52:37
+End                 : 2022-03-08T10:56:31
+Waited              : 00:00:02
+Reserved walltime   : 05:00:00
+Used walltime       : 00:03:54
+Used CPU time       : 00:06:31
+% User (Computation): 79.82%
+% System (I/O)      : 20.18%
+Mem reserved        : 2000M/core
+Max Mem used        : 3.89G (c10-88)
+Max Disk Write      : 10.24K (c10-88)
+Max Disk Read       : 2.08M (c10-88)

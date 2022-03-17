@@ -8,4 +8,8 @@ Solve - methods to solve MDPs that vary by input they output the relevant object
 """
 module Solvers
 
+
+function simulate()
+end
+
 end # module 

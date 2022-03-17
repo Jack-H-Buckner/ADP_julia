@@ -1,0 +1,22 @@
+Name                : tests
+User                : jhbuckne
+Account             : adamgrp
+Partition           : med
+Nodes               : c8-88
+Cores               : 1
+GPUs                : 0
+State               : FAILED
+ExitCode            : 1:0
+Submit              : 2022-03-10T17:19:28
+Start               : 2022-03-10T17:19:29
+End                 : 2022-03-10T17:19:29
+Waited              : 00:00:01
+Reserved walltime   : 05:00:00
+Used walltime       : 00:00:00
+Used CPU time       : 00:00:00
+% User (Computation): --
+% System (I/O)      : --
+Mem reserved        : 2000M/core
+Max Mem used        : 0.00  (c8-88)
+Max Disk Write      : 0.00  (c8-88)
+Max Disk Read       : 0.00  (c8-88)

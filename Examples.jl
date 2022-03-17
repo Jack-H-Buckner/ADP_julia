@@ -117,8 +117,8 @@ deterministic component of fishery model
 """
 function unknown_growth_rate_T!(x::AbstractVector{Float64},f::AbstractVector{Float64},pars)
     x[2] = pars[1] *x[2] + pars[2]
-    k = pars[3]
-    x[1] = x[1] + x[2] - f[1] - log(1+exp(x[2] +x[1]-f[1])/k)
+    b = pars[3]
+    x[1] = x[1] + x[2] - f[1] - log(1+b*exp(x[1]))
     return x
 end
 
@@ -132,20 +132,20 @@ deterministic component of fishery model
 - pars paramters including [1] ntrual mortality, [2] density dependence 
 """
 function unknown_growth_rate_T(x::AbstractVector{Float64},f::AbstractVector{Float64},pars)
-    r = pars[1] *x[2] + pars[2]
+    log_r = pars[1] *x[2] + pars[2]
     b = pars[3]
-    x1 = x[1] + r - f[1] - log(1+b*exp(x[1]-f[1]))
-    return [x1,r]
+    x1 = x[1] + log_r - f[1] - log(1+b*exp(x[1]))
+    return [x1,log_r]
 end
 
-Sigma_N = [0.01 0.0;
-     0.0 0.02] # process noise
+Sigma_N = [0.02 0.0;
+     0.0 0.005] # process noise
 
 H = [1.0 0.0] # measurement model 
 Sigma_O(sigma_t) = sigma_t # observation noise 
 
 function fmax(pars)
-    return log(pars[2]/(1-pars[1]))
+    return pars[2]/(1-pars[1])
 end 
 
 
@@ -158,26 +158,32 @@ end
     
 function unknown_growth_rate_R_obs(x,f, pars)
     harvest = exp(x[1]) * (1-exp(-f[1])) 
-    fishing_costs = pars[4]*f[1]
+   
+    fishing_costs = pars[4]*f[1] + pars[4]*f[1]^2
     return harvest - fishing_costs 
 end 
     
 # paramters and action space
 
-sigma_max = 0.25
-c_obs = 0.01
-c_fish = 0.00001
-r_hat = 1.5
-rho = 0.99
+sigma_max = 10.0
+c_obs = 0.0001
+c_fish = 0.3
+r_hat = 2.0
+rho = 0.98
 B_hat = 1.5
 b = (r_hat - 1)/B_hat
-unknown_growth_rate_pars = (rho,r_hat*(1-rho),b,c_fish,sigma_max,c_obs)
-    
-unknown_growth_upper = [log(2.0*B_hat),log(4.0*r_hat)]
-unknown_growth_lower = [log(0.01*B_hat),log(0.1*r_hat)]
 
-unknown_growth_actions = broadcast(x -> [x], 0.0:(fmax(unknown_growth_rate_pars)/15):(3*fmax(unknown_growth_rate_pars)))
-unknown_growth_observations = [[sigma_max /50],[sigma_max]]
+unknown_growth_rate_pars = (rho,log(r_hat)*(1-rho),b,c_fish,sigma_max,c_obs)
+    
+
+unknown_growth_upper = [2.0, 1.75]
+unknown_growth_lower = [-1.5, -1.0]
+
+max_effort = 1.5
+effort_levels = 40
+fm = fmax(unknown_growth_rate_pars)
+unknown_growth_actions = broadcast(x -> [x], 0.0:(max_effort*fm/effort_levels ):(max_effort*fm))
+unknown_growth_observations = broadcast(x -> [sigma_max /x], 1.0:4.0:20)
 
 
 end # module 

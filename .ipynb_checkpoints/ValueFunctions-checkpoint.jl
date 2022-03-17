@@ -336,5 +336,139 @@ function update_adjustment!(V, vals)
             1:length(V.uncertantyAdjustment.nodes))
     update_guasianBeleifsInterp2d!(V.uncertantyAdjustment,vals_up)
 end
+    
+    
+################################
+###     Policy functions     ###
+################################
+    
+    
+mutable struct policyFunction
+    d::Int64 # dimensions
+    a::AbstractVector{Float64} # lower bounds
+    b::AbstractVector{Float64} # upper bounds
+    m::Int # nodes per dimension
+    actionDims::Int64 # dimensions
+    observationDims::Int64 # dimensions
+    actionNames
+    observationNames
+    actionPolynomials::AbstractVector{}
+    observationPolynomials::AbstractVector{}
+end 
+    
+
+function init_policyFunction(a,b,m,actionDims,observationDims,actionNames,observationNames)
+    actionPolynomials = []
+    for i in 1:actionDims
+        push!(actionPolynomials, init_interpolation(a,b,m))
+ 
+    end 
+        
+    observationPolynomials = []
+    for i in 1:observationDims
+        push!(observationPolynomials, init_interpolation(a,b,m))
+ 
+    end
+    
+    return policyFunction(length(a),a,b,m,actionDims,observationDims,actionNames,observationNames,actionPolynomials,observationPolynomials)
+end 
+
+
+
+    
+function update_policyFunction!(policyFunction, new_values_action, new_values_observations)
+    for i in 1:actionDims
+        update_interpolation!(policyFunction.actionPolynomial[i], new_values_action[i])
+ 
+    end 
+
+    for i in 1:observationDims
+        update_interpolation!(policyFunction.observationPolynomials[i], new_values_observations[i])
+ 
+    end
+end 
+    
+function (P::policyFunction)(x)
+    action = []
+    for i in 1:actionDims
+        push!(action, policyFunction.actionPolynomial[i](x))
+ 
+    end  
+        
+    observation = []
+    for i in 1:observationDims
+        push!(observations, policyFunction.observationsPolynomial[i](x))
+ 
+    end 
+    return action, observation 
+end 
+
+
+    
+# gausian beleif state interpolation
+    
+mutable struct policyFunctionGaussian
+    m1::Int64
+    m2::Int64
+    a::AbstractVector{Float64} # lower bounds mean
+    b::AbstractVector{Float64} # upper bounds mean
+    actionDims::Int64 # dimensions
+    observationDims::Int64 # dimensions
+    actionNames
+    observationNames
+    actionPolynomials::AbstractVector{}
+    observationPolynomials::AbstractVector{}
+end 
+
+function init_policyFunctionGaussian(m1,m2,lower_mu,upper_mu,actionDims,observationDims,actionNames,observationNames)
+    actionPolynomials = []
+    for i in 1:actionDims
+        push!(actionPolynomials, init_adjGausianBeleifsInterp(m1, m2, lower_mu, upper_mu))
+ 
+    end 
+        
+    observationPolynomials = []
+    for i in 1:observationDims
+        push!(observationPolynomials, init_adjGausianBeleifsInterp(m1, m2, lower_mu, upper_mu))
+ 
+    end
+    
+    return policyFunctionGaussian(m1, m2, lower_mu, upper_mu,actionDims,observationDims,actionNames,observationNames,actionPolynomials,observationPolynomials)
+end 
+
+    
+function update_policyFunctionGaussian_base!(policyFunction, new_values_action)
+    for i in 1:policyFunction.actionDims
+        update_base!(policyFunction.actionPolynomials[i], new_values_action[i])
+    end
+
+end 
+    
+function update_policyFunctionGaussian_adjustment!(policyFunction, new_values_action, new_values_observations)
+    for i in 1:policyFunction.actionDims
+        update_adjustment!(policyFunction.actionPolynomials[i], new_values_action[i])
+    end
+    for i in 1:policyFunction.observationDims
+        update_adjustment!(policyFunction.observationPolynomials[i], new_values_observations[i])
+    end
+end 
+    
+function (P::policyFunctionGaussian)(x)
+        
+        
+    action = zeros(P.actionDims)
+    for i in 1:P.actionDims
+        action[i] = P.actionPolynomials[i](1.0*zeros(5), x)
+ 
+    end  
+    
+    observation = zeros( 1 )
+    for i in 1:P.observationDims
+        observation[i] = P.observationPolynomials[i](1.0*zeros(5), x)
+ 
+    end 
+    return action, observation 
+end 
+    
 
 end 

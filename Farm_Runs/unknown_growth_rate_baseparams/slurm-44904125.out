@@ -1,0 +1,22 @@
+Name                : allocation
+User                : jhbuckne
+Account             : adamgrp
+Partition           : 
+Nodes               : c8-88
+Cores               : 1
+GPUs                : 0
+State               : FAILED
+ExitCode            : 1:0
+Submit              : 2022-03-10T17:12:56
+Start               : 2022-03-10T17:12:57
+End                 : 2022-03-10T17:12:57
+Waited              : 00:00:00
+Reserved walltime   : 00:00:00
+Used walltime       : 00:00:00
+Used CPU time       : 00:00:00
+% User (Computation): --
+% System (I/O)      : --
+Mem reserved        : 0/node
+Max Mem used        : 0.00  (c8-88)
+Max Disk Write      : 0.00  (c8-88)
+Max Disk Read       : 0.00  (c8-88)

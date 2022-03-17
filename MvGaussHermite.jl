@@ -3,7 +3,7 @@ module MvGaussHermite
 using FastGaussQuadrature 
 using LinearAlgebra 
 
-export quadrature, mutableQuadrature
+export quadrature, mutableQuadrature, init, init_mutable
 
 struct quadrature
     weights::AbstractVector{Float64}
@@ -294,6 +294,7 @@ function g!(v,y,S,rV,R,mu)
 end 
 f! = (v,y,S,rV,R,mu) -> broadcast(i -> g!(v[i],y[i],S,rV,R,mu), 1:length(y))
 
+    
 """
 Updates the transformation of the nodes with a new covariance matrix 
 """

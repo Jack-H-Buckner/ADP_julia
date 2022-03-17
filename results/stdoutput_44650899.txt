@@ -1,0 +1,159 @@
+==========================================
+SLURM_JOB_ID = 44650899
+SLURM_NODELIST = c10-88
+==========================================
+# test loading libraries
+import Pkg
+Pkg.add("Distributions")
+Pkg.add("Roots")
+Pkg.add("KalmanFilters")
+Pkg.add("LinearAlgebra")
+Pkg.add("IterTools")
+Pkg.add("FastGaussQuadrature")
+Pkg.add("StatsBase")
+Pkg.add("JLD2")
+
+#import libraries
+using JLD2
+
+# load modules 
+include("Examples.jl")
+include("ValueFunctions.jl")
+include("BeleifMDPSolvers.jl")
+
+
+# set parameters 
+pars = Examples.unknown_growth_rate_pars
+
+T_! = (x,f) -> Examples.unknown_growth_rate_T!(x,f,pars)
+T_ = (x,f) -> Examples.unknown_growth_rate_T(x,f,pars)
+R = (x,f,obs) -> Examples.unknown_growth_rate_R(x,f,obs,pars)
+R_obs = (x,f) -> Examples.unknown_growth_rate_R_obs(x,f,pars)
+Sigma_N = Examples.Sigma_N
+H = (x,a,obs) -> Examples.H * x
+Sigma_O = (a,obs) -> reshape(Examples.Sigma_O(obs),1,1)
+delta = 0.95
+actions = Examples.unknown_growth_actions
+observations = Examples.unknown_growth_observations
+
+upper = Examples.unknown_growth_upper
+lower = Examples.unknown_growth_lower
+
+# define solver 
+solver1 = BeleifMDPSolvers.init(T_!, T_, R, R_obs, Examples.H, Sigma_N, Sigma_O,delta,actions,observations,lower,upper;
+            m_Quad_x = 7, m_Quad_y = 7,m_Quad = 9,
+            n_grids_obs = 20,n_grid = 6)
+
+# solve observed system 
+BeleifMDPSolvers.solve_observed_parallel(solver1)
+
+# save output
+save_object("data/unknownGrowthGateSolver.jld2", solver1)
+ok now for the actual standard output
+Module julia/1.7.0 loaded 
+    Updating registry at `~/.julia/registries/General.toml`
+   Resolving package versions...
+  No Changes to `~/.julia/environments/v1.7/Project.toml`
+  No Changes to `~/.julia/environments/v1.7/Manifest.toml`
+   Resolving package versions...
+  No Changes to `~/.julia/environments/v1.7/Project.toml`
+  No Changes to `~/.julia/environments/v1.7/Manifest.toml`
+   Resolving package versions...
+  No Changes to `~/.julia/environments/v1.7/Project.toml`
+  No Changes to `~/.julia/environments/v1.7/Manifest.toml`
+   Resolving package versions...
+  No Changes to `~/.julia/environments/v1.7/Project.toml`
+  No Changes to `~/.julia/environments/v1.7/Manifest.toml`
+   Resolving package versions...
+  No Changes to `~/.julia/environments/v1.7/Project.toml`
+  No Changes to `~/.julia/environments/v1.7/Manifest.toml`
+   Resolving package versions...
+  No Changes to `~/.julia/environments/v1.7/Project.toml`
+  No Changes to `~/.julia/environments/v1.7/Manifest.toml`
+   Resolving package versions...
+  No Changes to `~/.julia/environments/v1.7/Project.toml`
+  No Changes to `~/.julia/environments/v1.7/Manifest.toml`
+   Resolving package versions...
+  No Changes to `~/.julia/environments/v1.7/Project.toml`
+  No Changes to `~/.julia/environments/v1.7/Manifest.toml`
+here1 400.04
+2 1357.4763912829383
+3 76.66246994521669
+4 126.77613141801173
+5 75.15601181108023
+6 74.48614670255218
+7 53.35620104474754
+8 51.510219192725415
+9 38.736528462381706
+10 36.39979761421232
+11 28.279940902788166
+12 26.08441302069928
+13 20.737046760318865
+14 18.89072612145071
+15 15.298383227613156
+16 13.789744378821243
+17 11.341521423889857
+18 10.135487346497083
+19 8.442378693383581
+20 7.497290334382252
+21 6.308389930968056
+22 5.575608560387739
+23 4.7305075418225595
+24 4.165761307301139
+25 3.5585862543482545
+26 3.125765591384653
+27 2.6852415676096397
+28 2.3547804933664276
+29 2.0321715065416703
+30 1.7805229654607984
+31 1.541925734927918
+32 1.3507954885825555
+33 1.1731846858196118
+34 1.02796980225841
+35 0.8950387944544143
+36 0.7846120097335073
+37 0.6846441138318015
+38 0.6005618343810853
+39 0.525062213194219
+40 0.4609369768135107
+41 0.4036971422096038
+42 0.3547038112882082
+43 0.31115497764071154
+44 0.2736499092261032
+45 0.24040978075819575
+46 0.2116404562259019
+47 0.1861919277891758
+48 0.164077109806711
+49 0.14453821490574795
+50 0.12750220675240645
+51 0.11245997703025572
+52 0.09930796726947981
+53 0.08769754650968102
+54 0.07752195703486887
+55 0.06853806497940079
+56 0.06064820444804534
+57 0.053679918694789046
+58 0.04754911690849347
+59 0.04213158575993718
+Name                : tests
+User                : jhbuckne
+Account             : adamgrp
+Partition           : high
+Nodes               : c10-88
+Cores               : 1
+GPUs                : 0
+State               : COMPLETED
+ExitCode            : 0:0
+Submit              : 2022-03-08T10:57:28
+Start               : 2022-03-08T10:57:30
+End                 : 2022-03-08T12:05:52
+Waited              : 00:00:02
+Reserved walltime   : 05:00:00
+Used walltime       : 01:08:22
+Used CPU time       : 02:15:30
+% User (Computation): 96.26%
+% System (I/O)      :  3.74%
+Mem reserved        : 2000M/core
+Max Mem used        : 2.25G (c10-88)
+Max Disk Write      : 10.24K (c10-88)
+Max Disk Read       : 2.08M (c10-88)

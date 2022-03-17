@@ -21,16 +21,12 @@ discrete action spaces.
 """
 module BellmanOpperators
 
-#using Optim
-#using Roots
 using KalmanFilters
 using LinearAlgebra
+#using Optim
 
 include("MvGaussHermite.jl")
-include("utils.jl")
 include("POMDPs.jl")
-
-
 #####################################
 ###  Gaussain quadrature and UKF  ###
 #####################################
@@ -202,40 +198,16 @@ end
 
 
 
-# """
-#     value_expectation!(s,a,POMDP,Quad_X, Quad_y)
+"""
+    value_expectation!(s,a,POMDP,Quad_X, Quad_y)
 
-# data - inplace object, update x_hat and x_cov to evaluate at a given grid point 
-# a - action
-# POMDP - problem
-# V - value function 
+data - inplace object, update x_hat and x_cov to evaluate at a given grid point 
+a - action
+POMDP - problem
+V - value function 
 
-# """
-# function value_expectation!(s, a, obs, data, POMDP::POMDPs.POMDP_KalmanFilter{Function}, V)
-    
-#     # convert state vector to mean and covariance 
-#     data.x_hat, data.x_cov = s
-#     tu = KalmanFilters.time_update(data.x_hat, data.x_cov, x ->POMDP.T(x,a),  POMDP.Sigma_N)
-#     data.x_hat, data.x_cov = KalmanFilters.get_state(tu), KalmanFilters.get_covariance(tu)
-    
-#     #observaton quadrature nodes 
-#     H = x -> POMDP.H(x,a,obs) # define measurment function # allocation? 
-#     data.y_hat, data.y_cov = propogate_observation_model(data.x_hat,data.x_cov,H,data.Quad_x) # allocation 
-#     data.y_cov .+= POMDP.Sigma_O(a,obs)
-#     MvGaussHermite.update!(data.Quad_y,data.y_hat,data.y_cov)
-    
-# #     ### new states 
-    
-#     #new_state!(data,H, POMDP.Sigma_O)
-#     data.new_states_mat = broadcast(y -> new_state(y, data.x_hat,data.x_cov, H, POMDP.Sigma_O(a,obs)), data.Quad_y.nodes) # large allocation 
-    
-#     #data.new_states_vec = broadcast(x -> reshape_state(x[1],x[2]),data.new_states_mat)
-#     data.vals = broadcast(x -> V(data.z,x), data.new_states_mat)
-#     return sum(data.vals .* data.Quad_y.weights)
-# end 
-
-
-function value_expectation!(s, a, obs, data, POMDP, V) #::POMDPs.POMDP_KalmanFilter{AbstractMatrix{Float64}}
+"""
+function value_expectation!(s, a, obs, data, POMDP, V) 
     
     # convert state vector to mean and covariance 
     data.x_hat, data.x_cov = s
@@ -258,7 +230,9 @@ function value_expectation!(s, a, obs, data, POMDP, V) #::POMDPs.POMDP_KalmanFil
 end 
 
 
-
+"""
+    value_expectation_passive!(s, a, data, POMDP, V)
+"""
 function value_expectation_passive!(s, a, data, POMDP, V) #::POMDPs.POMDP_KalmanFilter{AbstractMatrix{Float64}}
     
     # convert state vector to mean and covariance 
@@ -293,7 +267,7 @@ end
 function reward_expectation_passive!(s, a, data, POMDP)
     data.x_hat, data.x_cov = s
     MvGaussHermite.update!(data.Quad_x,data.x_hat,data.x_cov) 
-    v = sum(broadcast(x -> POMDP.R_obs(x, a,),data.Quad_x.nodes) .* data.Quad_x.weights) # large allocation 
+    v = sum(broadcast(x -> POMDP.R_obs(x, a),data.Quad_x.nodes) .* data.Quad_x.weights) # large allocation 
     return v
 end
 
@@ -316,114 +290,80 @@ function expectation_passive!(s, a,  data, POMDP, V)
     return ER + POMDP.delta*EV
 end
 
+    
+    
+#################################
+## Bellman operators, policies ##
+#################################
+
+
+"""
+    action_passive!(s, data,POMDP, V)
+
+Identifies the best action choice, not accounting for the measurment update. solve for maximum with
+brent search 
+"""
+
+function action_passive!(s,data,POMDP,V, optimizer)
+    if optimizer == "passive 1d" 
+        sol = Optim.optimize(a -> -1*expectation_passive!(s, a,data, POMDP,V), 
+                            POMDP.actions.upper_act, POMDP.actions.lower_act, GoldenSection())     
+        return sol.minimizer
+    elseif optimizer == "passive brute force"
+        results = broadcast(a -> expectation_passive!(s,a,data, POMDP,V),POMDP.actions.actions) 
+        ind = argmax(results)
+        return POMDP.actions.actions[ind]
+    end 
+end 
+
+
+     
 
 """
     Bellman(s,V, POMDP, Quad_x, Quad_y, Quad_epsilon)
 
 Evaluates the bellman opperator, when the action space is discrete by evaluating all choice
-and chooseing the best performer
+and chooseing the best performer.
+
+If an action is provided then is searches for the best observaiton variable given that action
+and returns the optimum value. 
 """
-function Bellman!(s, data,POMDP, V)
-    results = broadcast(a -> expectation!(s, a[1],a[2],data, POMDP,V),POMDP.A)
-    ind = argmax(results)
-    return results[ind]
-end 
-
-    
-function Policy_passive!(s, data,POMDP, V)
-    results = broadcast(a -> expectation!(s, a[1],a[2],data, POMDP,V),POMDP.A)
-    ind = argmax(results)
-    return results[ind]
-end 
-
-
-
-"""
-    Policy(s,V, POMDP, Quad_x, Quad_y, Quad_epsilon)
-
-Evaluates the bellman opperator, when the action space is discrete by evaluating all choice
-and chooseing the best performer. Returns the best
-action for a given state
-"""
-function Policy!(s, data, POMDP,V)
-    results = broadcast(a -> expectation!(s,a[1],a[2],data, POMDP,V),POMDP.A)
-    ind = argmax(results)
-
-    return POMDP.A[ind]
-end 
-
-
-
-
-
-
-
-
-#########################################
-###  Monte Carlo and particle filter  ###
-#########################################
-
-
-include("ParticleFilters.jl")
-using Distributions
-
-
-"""
-    MC_value_expectation!(s,a,POMDP,Quad_X, Quad_y)
-"""
-function MC_value_expectation(s, a, obs, POMDP, V, N1, N2)
-    
-    # convert state vector to mean and covariance 
-    x_hat, x_cov = s
-    d = Distributions.MvNormal(x_hat, x_cov)
-    
-    particles = ParticleFilters.init(N1,length(x_hat))
-
-    particles.samples = broadcast(i -> reshape(rand(d,1),2), 1:N1)
-    
-    ParticleFilters.time_update!(particles,POMDP.T_sim!,a)
-    
-    #observaton quadrature nodes 
-    inds = sample(1:N1, N2)
-    x = particles.samples[inds]
-    y = broadcast(x->POMDP.G_sim(x,a,obs),x)
-    
-    newstates = broadcast(i -> zeros(length(s)),1:N2)
-    i = 0
-    for yt in y
-        i += 1
-        samples, weights = ParticleFilters.bayes_update(particles,POMDP.G,yt,a,obs)
-        x_hat = sum(samples .* weights)
-        x_cov = sum(broadcast( i-> (x_hat .- samples[i]) * transpose(x_hat .- samples[i]), 1:N1).* weights)
-        newstates[i] = reshape_state(x_hat, x_cov) 
+function Bellman!(s, data,V, POMDP, optimizer)    
+    if optimizer == "brute force"
+        results = broadcast(a -> expectation!(s, a[1],a[2],data, POMDP,V),POMDP.actions.choices) 
+        ind = argmax(results)
+        return results[ind]
+    elseif optimizer == "passive 1d"
+        a = action_passive!(s, data,POMDP,V,optimizer)
+        sol = Optim.optimize(obs -> -1*expectation!(s,a,obs,data, POMDP,V), 
+                        POMDP.actions.upper_obs, POMDP.actions.lower_obs,  GoldenSection())  
+        return -1.0*sol.minimum
+    elseif optimizer == "passive brute force"
+        a = action_passive!(s, data,POMDP,V,optimizer)
+        results = broadcast(obs -> expectation!(s, a, obs,data, POMDP,V),POMDP.actions.observations) 
+        ind = argmax(results)
+        return results[ind]
     end
-    
-    vals = broadcast(x -> V(x, a), newstates)
-    
-    return sum(vals)/N2
 end 
-
-
-
-
-function MC_reward_expectation(s,a,obs, POMDP,N)
-    # convert state vector to mean and covariance 
-    x_hat, x_cov = s
-    d = Distributions.MvNormal(x_hat, x_cov)
-    samples = broadcast(i -> reshape(rand(d,1),2), 1:N)
-    vals = broadcast( x-> POMDP.R(x,a,obs),samples)
-    return sum(vals)/N
+    
+    
+function Policy!(s, data,V, POMDP, optimizer)    
+    if optimizer == "brute force"
+        results = broadcast(a -> expectation!(s, a[1],a[2],data, POMDP,V),POMDP.actions.choices) 
+        ind = argmax(results)
+        return POMDP.actions.choices[ind]
+    elseif optimizer == "passive 1d"
+        a = action_passive!(s, data,POMDP,V)
+        sol = Optim.optimize(obs -> -1*expectation!(s,a,obs,data, POMDP,V), 
+                        POMDP.actions.upper_obs, POMDP.actions.lower_obs,  GoldenSection())  
+        return a, sol.minimizer
+    elseif "passive brute force"
+        a = action_passive!(s, data,POMDP,V,optimizer)
+        results = broadcast(obs -> expectation!(s, a, obs,data, POMDP,V),POMDP.actions.observations) 
+        ind = argmax(results)
+        return a, POMDP.actions.observations[ind]
+    end
 end
-
-
-function MC_expectation(s,a,obs,POMDP,V,N1,N2)
-    # convert state vector to mean and covariance 
-    ER = MC_reward_expectation(s,a,obs,POMDP,N2)
-    EV = MC_value_expectation(s, a,obs,POMDP, V, N1, N2)
-    return ER + POMDP.delta*EV
-end
-
-
 
 ##############################################
 ### Bellman opperator for observed systems ###
@@ -473,13 +413,18 @@ end
 
 Evaluates the bellman opperator, when the action space is discrete by evaluating all choice
 and chooseing the best performer
-"""
-function obs_Bellman(x, intermidiate,V, POMDP)
-    results = broadcast(a -> obs_expectation(x,a,intermidiate,V,POMDP),POMDP.actions)
-    ind = argmax(results)
-    return results[ind]
+""" #::POMDPs.POMDP_KalmanFilter{POMDPs.discreteActions,AbstractArray{Float64,2}}
+function obs_Bellman(x, intermidiate,V, POMDP, optimizer)
+    if (optimizer == "brute force") | (optimizer == "passive brute force")
+        results = broadcast(a -> obs_expectation(x,a,intermidiate,V,POMDP),POMDP.actions.actions)
+        ind = argmax(results)
+        return results[ind]
+    elseif optimizer == "passive 1d"
+        sol = Optim.optimize(a -> -1*obs_expectation(x,a,intermidiate,V,POMDP), 
+                         POMDP.actions.upper_act, POMDP.actions.lower_act, GoldenSection()) 
+        return -1.0*sol.minimum#, sol.minimizer
+    end
 end 
-
 
 
 """
@@ -488,10 +433,16 @@ end
 Evaluates the bellman opperator, when the action space is discrete by evaluating all choice
 and chooseing the best performer
 """
-function obs_Policy(x, intermidiate,V, POMDP)
-    results = broadcast(a -> obs_expectation(x,a,intermidiate,V,POMDP),POMDP.actions)
-    ind = argmax(results)
-    return POMDP.actions[ind]
+function obs_Policy(x, intermidiate,V, POMDP, optimizer)
+    if optimizer == "brute force"
+        results = broadcast(a -> obs_expectation(x,a,intermidiate,V,POMDP),POMDP.actions.actions)
+        ind = argmax(results)
+        return POMDP.actions.actions[ind]
+    elseif optimizer == "passive 1d"
+        sol = Optim.optimize(a -> -1*obs_expectation(x,a,intermidiate,V,POMDP), 
+                         POMDP.actions.upper_act, POMDP.actions.lower_act, Brent()) 
+        return sol.minimizer
+    end
 end
 
 
@@ -623,5 +574,69 @@ function value_expectation(s::AbstractVector{Float64}, a::AbstractVector{Float64
     return sum(vals .* Quad_y.weights)
 end 
 
+
+#########################################
+###  Monte Carlo and particle filter  ###
+#########################################
+
+
+include("ParticleFilters.jl")
+using Distributions
+
+
+"""
+    MC_value_expectation!(s,a,POMDP,Quad_X, Quad_y)
+"""
+function MC_value_expectation(s, a, obs, POMDP, V, N1, N2)
+    
+    # convert state vector to mean and covariance 
+    x_hat, x_cov = s
+    d = Distributions.MvNormal(x_hat, x_cov)
+    
+    particles = ParticleFilters.init(N1,length(x_hat))
+
+    particles.samples = broadcast(i -> reshape(rand(d,1),2), 1:N1)
+    
+    ParticleFilters.time_update!(particles,POMDP.T_sim!,a)
+    
+    #observaton quadrature nodes 
+    inds = sample(1:N1, N2)
+    x = particles.samples[inds]
+    y = broadcast(x->POMDP.G_sim(x,a,obs),x)
+    
+    newstates = broadcast(i -> zeros(length(s)),1:N2)
+    i = 0
+    for yt in y
+        i += 1
+        samples, weights = ParticleFilters.bayes_update(particles,POMDP.G,yt,a,obs)
+        x_hat = sum(samples .* weights)
+        x_cov = sum(broadcast( i-> (x_hat .- samples[i]) * transpose(x_hat .- samples[i]), 1:N1).* weights)
+        newstates[i] = reshape_state(x_hat, x_cov) 
+    end
+    
+    vals = broadcast(x -> V(x, a), newstates)
+    
+    return sum(vals)/N2
+end 
+
+
+
+
+function MC_reward_expectation(s,a,obs, POMDP,N)
+    # convert state vector to mean and covariance 
+    x_hat, x_cov = s
+    d = Distributions.MvNormal(x_hat, x_cov)
+    samples = broadcast(i -> reshape(rand(d,1),2), 1:N)
+    vals = broadcast( x-> POMDP.R(x,a,obs),samples)
+    return sum(vals)/N
+end
+
+
+function MC_expectation(s,a,obs,POMDP,V,N1,N2)
+    # convert state vector to mean and covariance 
+    ER = MC_reward_expectation(s,a,obs,POMDP,N2)
+    EV = MC_value_expectation(s, a,obs,POMDP, V, N1, N2)
+    return ER + POMDP.delta*EV
+end
 
 end # module 

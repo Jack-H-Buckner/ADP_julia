@@ -1,0 +1,87 @@
+==========================================
+SLURM_JOB_ID = 44645051
+SLURM_NODELIST = c8-63
+==========================================
+# test loading libraries
+import Pkg
+Pkg.add("Distributions")
+Pkg.add("Roots")
+Pkg.add("KalmanFilters")
+Pkg.add("LinearAlgebra")
+Pkg.add("IterTools")
+Pkg.add("FastGaussQuadrature")
+Pkg.add("StatsBase")
+
+# load modules 
+include("Examples.jl")
+include("BeleifMDPSolvers.jl")
+
+# test multithreading
+threads = zeros(25)
+Threads.@threads for i = 1:25
+        threads[i] =Threads.threadid()
+end
+println(threads)include("Examples.jl")
+include("BeleifMDPSolvers.jl")
+
+print("test")
+
+ok now for the actual standard output
+Module julia/1.7.0 loaded 
+WARNING: replacing module Examples.
+    Updating registry at `~/.julia/registries/General.toml`
+   Resolving package versions...
+  No Changes to `~/.julia/environments/v1.7/Project.toml`
+  No Changes to `~/.julia/environments/v1.7/Manifest.toml`
+   Resolving package versions...
+  No Changes to `~/.julia/environments/v1.7/Project.toml`
+  No Changes to `~/.julia/environments/v1.7/Manifest.toml`
+   Resolving package versions...
+  No Changes to `~/.julia/environments/v1.7/Project.toml`
+  No Changes to `~/.julia/environments/v1.7/Manifest.toml`
+   Resolving package versions...
+  No Changes to `~/.julia/environments/v1.7/Project.toml`
+  No Changes to `~/.julia/environments/v1.7/Manifest.toml`
+   Resolving package versions...
+  No Changes to `~/.julia/environments/v1.7/Project.toml`
+  No Changes to `~/.julia/environments/v1.7/Manifest.toml`
+   Resolving package versions...
+  No Changes to `~/.julia/environments/v1.7/Project.toml`
+  No Changes to `~/.julia/environments/v1.7/Manifest.toml`
+   Resolving package versions...
+    Updating `~/.julia/environments/v1.7/Project.toml`
+  [2913bbd2] + StatsBase v0.33.16
+  No Changes to `~/.julia/environments/v1.7/Manifest.toml`
+ERROR: LoadError: MethodError: no method matching *(::Nothing, ::Module)
+Closest candidates are:
+  *(::Any, ::Any, !Matched::Any, !Matched::Any...) at /share/apps/julia-1.7.0/share/julia/base/operators.jl:655
+  *(!Matched::SpecialFunctions.SimplePoly, ::Any) at ~/.julia/packages/SpecialFunctions/ZpCCa/src/expint.jl:8
+  *(!Matched::ChainRulesCore.AbstractThunk, ::Any) at ~/.julia/packages/ChainRulesCore/IzITE/src/tangent_arithmetic.jl:125
+  ...
+Stacktrace:
+ [1] top-level scope
+   @ ~/ADP_julia/run_unknownGrowthRate.jl:20
+in expression starting at /home/jhbuckne/ADP_julia/run_unknownGrowthRate.jl:20
+[1.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0, 17.0, 18.0, 19.0, 20.0, 21.0, 22.0, 23.0, 24.0]
+Name                : tests
+User                : jhbuckne
+Account             : adamgrp
+Partition           : med
+Nodes               : c8-63
+Cores               : 1
+GPUs                : 0
+State               : FAILED
+ExitCode            : 1:0
+Submit              : 2022-03-08T07:51:28
+Start               : 2022-03-08T07:51:29
+End                 : 2022-03-08T07:51:55
+Waited              : 00:00:01
+Reserved walltime   : 00:01:00
+Used walltime       : 00:00:26
+Used CPU time       : 00:00:25
+% User (Computation): 94.73%
+% System (I/O)      :  5.26%
+Mem reserved        : 2000M/core
+Max Mem used        : 0.00  (c8-63)
+Max Disk Write      : 0.00  (c8-63)
+Max Disk Read       : 0.00  (c8-63)

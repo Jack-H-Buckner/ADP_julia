@@ -1,0 +1,36 @@
+==========================================
+SLURM_JOB_ID = 44637380
+SLURM_NODELIST = c8-88
+==========================================
+cat: run.R: No such file or directory
+ok now for the actual standard output
+Module julia/1.7.0 loaded 
+ERROR: LoadError: ArgumentError: Package Distributions not found in current path:
+- Run `import Pkg; Pkg.add("Distributions")` to install the Distributions package.
+
+Stacktrace:
+ [1] require(into::Module, mod::Symbol)
+   @ Base ./loading.jl:967
+in expression starting at /home/jhbuckne/ADP_julia/do_I_work.jl:1
+Name                : tests
+User                : jhbuckne
+Account             : adamgrp
+Partition           : med
+Nodes               : c8-88
+Cores               : 1
+GPUs                : 0
+State               : FAILED
+ExitCode            : 1:0
+Submit              : 2022-03-07T21:02:23
+Start               : 2022-03-07T21:02:24
+End                 : 2022-03-07T21:02:28
+Waited              : 00:00:01
+Reserved walltime   : 00:01:00
+Used walltime       : 00:00:04
+Used CPU time       : 00:00:03
+% User (Computation): 89.83%
+% System (I/O)      :  0.00%
+Mem reserved        : 2000M/core
+Max Mem used        : 0.00  (c8-88)
+Max Disk Write      : 0.00  (c8-88)
+Max Disk Read       : 0.00  (c8-88)

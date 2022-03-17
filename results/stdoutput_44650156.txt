@@ -1,0 +1,100 @@
+==========================================
+SLURM_JOB_ID = 44650156
+SLURM_NODELIST = c10-88
+==========================================
+# test loading libraries
+import Pkg
+Pkg.add("Distributions")
+Pkg.add("Roots")
+Pkg.add("KalmanFilters")
+Pkg.add("LinearAlgebra")
+Pkg.add("IterTools")
+Pkg.add("FastGaussQuadrature")
+Pkg.add("StatsBase")
+Pkg.add("JLD2")
+
+#import libraries
+using JLD2
+
+# load modules 
+include("Examples.jl")
+include("ValueFunctions.jl")
+include("BeleifMDPSolvers.jl")
+
+
+# set parameters 
+pars = Examples.unknown_growth_rate_pars
+
+T_! = (x,f) -> Examples.unknown_growth_rate_T!(x,f,pars)
+T_ = (x,f) -> Examples.unknown_growth_rate_T(x,f,pars)
+R = (x,f,obs) -> Examples.unknown_growth_rate_R(x,f,obs,pars)
+R_obs = (x,f) -> Examples.unknown_growth_rate_R_obs(x,f,pars)
+Sigma_N = Examples.Sigma_N
+H = (x,a,obs) -> Examples.H * x
+Sigma_O = (a,obs) -> reshape(Examples.Sigma_O(obs),1,1)
+delta = 0.95
+actions = Examples.unknown_growth_actions
+observations = Examples.unknown_growth_observations
+
+upper = Examples.unknown_growth_upper
+lower = Examples.unknown_growth_lower
+
+# define solver 
+solver1 = BeleifMDPSolvers.init(T_!, T_, R, R_obs, Examples.H, Sigma_N, Sigma_O,delta,actions,observations,lower,upper;
+            m_Quad_x = 6, m_Quad_y = 6,m_Quad = 8,
+            n_grids_obs = 20,n_grid = 5)
+
+# solve observed system 
+#BeleifMDPSolvers.solve_observed_parallel(solver1)
+
+# save output
+save_object("data/unknownGrowthGateSolver.jld2", solver1)
+ok now for the actual standard output
+Module julia/1.7.0 loaded 
+    Updating registry at `~/.julia/registries/General.toml`
+   Resolving package versions...
+  No Changes to `~/.julia/environments/v1.7/Project.toml`
+  No Changes to `~/.julia/environments/v1.7/Manifest.toml`
+   Resolving package versions...
+  No Changes to `~/.julia/environments/v1.7/Project.toml`
+  No Changes to `~/.julia/environments/v1.7/Manifest.toml`
+   Resolving package versions...
+  No Changes to `~/.julia/environments/v1.7/Project.toml`
+  No Changes to `~/.julia/environments/v1.7/Manifest.toml`
+   Resolving package versions...
+  No Changes to `~/.julia/environments/v1.7/Project.toml`
+  No Changes to `~/.julia/environments/v1.7/Manifest.toml`
+   Resolving package versions...
+  No Changes to `~/.julia/environments/v1.7/Project.toml`
+  No Changes to `~/.julia/environments/v1.7/Manifest.toml`
+   Resolving package versions...
+  No Changes to `~/.julia/environments/v1.7/Project.toml`
+  No Changes to `~/.julia/environments/v1.7/Manifest.toml`
+   Resolving package versions...
+  No Changes to `~/.julia/environments/v1.7/Project.toml`
+  No Changes to `~/.julia/environments/v1.7/Manifest.toml`
+   Resolving package versions...
+  No Changes to `~/.julia/environments/v1.7/Project.toml`
+  No Changes to `~/.julia/environments/v1.7/Manifest.toml`
+Name                : tests
+User                : jhbuckne
+Account             : adamgrp
+Partition           : med
+Nodes               : c10-88
+Cores               : 1
+GPUs                : 0
+State               : COMPLETED
+ExitCode            : 0:0
+Submit              : 2022-03-08T10:48:09
+Start               : 2022-03-08T10:48:09
+End                 : 2022-03-08T10:49:15
+Waited              : 00:00:00
+Reserved walltime   : 01:00:00
+Used walltime       : 00:01:06
+Used CPU time       : 00:01:02
+% User (Computation): 97.56%
+% System (I/O)      :  2.44%
+Mem reserved        : 2000M/core
+Max Mem used        : 388.64M (c10-88)
+Max Disk Write      : 10.24K (c10-88)
+Max Disk Read       : 2.08M (c10-88)

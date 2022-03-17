@@ -1,0 +1,96 @@
+==========================================
+SLURM_JOB_ID = 44644905
+SLURM_NODELIST = c8-63
+==========================================
+# test loading libraries
+import Pkg
+Pkg.add("Distributions")
+Pkg.add("Roots")
+Pkg.add("KalmanFilters")
+Pkg.add("LinearAlgebra")
+Pkg.add("IterTools")
+Pkg.add("FastGaussQuadrature")
+
+# load modules 
+include("Examples.jl")
+include("BeleifMDPSolvers.jl")
+
+# test multithreading
+threads = zeros(25)
+Threads.@threads for i = 1:25
+        threads[i] =Threads.threadid()
+end
+println(threads)include("Examples.jl")
+include("BeleifMDPSolvers.jl")
+
+print("test")
+
+ok now for the actual standard output
+Module julia/1.7.0 loaded 
+    Updating registry at `~/.julia/registries/General.toml`
+   Resolving package versions...
+  No Changes to `~/.julia/environments/v1.7/Project.toml`
+  No Changes to `~/.julia/environments/v1.7/Manifest.toml`
+   Resolving package versions...
+  No Changes to `~/.julia/environments/v1.7/Project.toml`
+  No Changes to `~/.julia/environments/v1.7/Manifest.toml`
+   Resolving package versions...
+  No Changes to `~/.julia/environments/v1.7/Project.toml`
+  No Changes to `~/.julia/environments/v1.7/Manifest.toml`
+   Resolving package versions...
+  No Changes to `~/.julia/environments/v1.7/Project.toml`
+  No Changes to `~/.julia/environments/v1.7/Manifest.toml`
+   Resolving package versions...
+  No Changes to `~/.julia/environments/v1.7/Project.toml`
+  No Changes to `~/.julia/environments/v1.7/Manifest.toml`
+   Resolving package versions...
+  No Changes to `~/.julia/environments/v1.7/Project.toml`
+  No Changes to `~/.julia/environments/v1.7/Manifest.toml`
+ERROR: LoadError: ArgumentError: Package StatsBase not found in current path:
+- Run `import Pkg; Pkg.add("StatsBase")` to install the StatsBase package.
+
+Stacktrace:
+ [1] require(into::Module, mod::Symbol)
+   @ Base ./loading.jl:967
+ [2] include(mod::Module, _path::String)
+   @ Base ./Base.jl:418
+ [3] include(x::String)
+   @ Main.BeleifMDPSolvers.BellmanOpperators ~/ADP_julia/BellmanOpperators.jl:22
+ [4] top-level scope
+   @ ~/ADP_julia/BellmanOpperators.jl:583
+ [5] include(mod::Module, _path::String)
+   @ Base ./Base.jl:418
+ [6] include(x::String)
+   @ Main.BeleifMDPSolvers ~/ADP_julia/BeleifMDPSolvers.jl:17
+ [7] top-level scope
+   @ ~/ADP_julia/BeleifMDPSolvers.jl:22
+ [8] include(fname::String)
+   @ Base.MainInclude ./client.jl:451
+ [9] top-level scope
+   @ ~/ADP_julia/run_unknownGrowthRate.jl:12
+in expression starting at /home/jhbuckne/ADP_julia/ParticleFilters.jl:1
+in expression starting at /home/jhbuckne/ADP_julia/BellmanOpperators.jl:1
+in expression starting at /home/jhbuckne/ADP_julia/BeleifMDPSolvers.jl:1
+in expression starting at /home/jhbuckne/ADP_julia/run_unknownGrowthRate.jl:12
+Name                : tests
+User                : jhbuckne
+Account             : adamgrp
+Partition           : med
+Nodes               : c8-63
+Cores               : 1
+GPUs                : 0
+State               : FAILED
+ExitCode            : 1:0
+Submit              : 2022-03-08T07:39:20
+Start               : 2022-03-08T07:39:20
+End                 : 2022-03-08T07:39:40
+Waited              : 00:00:00
+Reserved walltime   : 00:01:00
+Used walltime       : 00:00:20
+Used CPU time       : 00:00:16
+% User (Computation): 92.48%
+% System (I/O)      :  7.52%
+Mem reserved        : 2000M/core
+Max Mem used        : 0.00  (c8-63)
+Max Disk Write      : 0.00  (c8-63)
+Max Disk Read       : 0.00  (c8-63)

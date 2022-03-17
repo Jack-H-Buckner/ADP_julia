@@ -1,0 +1,186 @@
+==========================================
+SLURM_JOB_ID = 44964321
+SLURM_NODELIST = c9-97
+==========================================
+# test loading libraries
+import Pkg
+Pkg.add("Distributions")
+Pkg.add("Roots")
+Pkg.add("KalmanFilters")
+Pkg.add("LinearAlgebra")
+Pkg.add("IterTools")
+Pkg.add("FastGaussQuadrature")
+Pkg.add("StatsBase")
+Pkg.add("JLD2")
+
+#import libraries
+using JLD2
+
+# load modules 
+include("/home/jhbuckne/ADP_julia/Examples.jl")
+include("/home/jhbuckne/ADP_julia/ValueFunctions.jl")
+include("/home/jhbuckne/ADP_julia/BeleifMDPSolvers.jl")
+
+
+# set parameters 
+pars = Examples.unknown_growth_rate_pars
+
+T_! = (x,f) -> Examples.unknown_growth_rate_T!(x,f,pars)
+T_ = (x,f) -> Examples.unknown_growth_rate_T(x,f,pars)
+R = (x,f,obs) -> Examples.unknown_growth_rate_R(x,f,obs,pars)
+R_obs = (x,f) -> Examples.unknown_growth_rate_R_obs(x,f,pars)
+Sigma_N = Examples.Sigma_N
+H = (x,a,obs) -> Examples.H * x
+Sigma_O = (a,obs) -> reshape(Examples.Sigma_O(obs),1,1)
+delta = 0.95
+actions = Examples.unknown_growth_actions
+observations = Examples.unknown_growth_observations
+
+upper = Examples.unknown_growth_upper
+lower = Examples.unknown_growth_lower
+
+# define solver 
+solver1 = BeleifMDPSolvers.init(T_!, T_, R, R_obs, Examples.H, Sigma_N, Sigma_O,delta,actions,observations,lower,upper;
+            m_Quad_x = 7, m_Quad_y = 7,m_Quad = 3,
+            n_grids_obs = 5,n_grid = 5)
+
+# solve observed system 
+BeleifMDPSolvers.solve_observed_parallel(solver1)
+
+
+VF_dat = (solver1.valueFunction.baseValue.values, solver1.valueFunction.uncertantyAdjustment.chebyshevInterpolation.values)
+@save "data/VF_dat.jld2" VF_dat
+ok now for the actual standard output
+Module julia/1.7.0 loaded 
+    Updating registry at `~/.julia/registries/General.toml`
+   Resolving package versions...
+  No Changes to `~/.julia/environments/v1.7/Project.toml`
+  No Changes to `~/.julia/environments/v1.7/Manifest.toml`
+   Resolving package versions...
+  No Changes to `~/.julia/environments/v1.7/Project.toml`
+  No Changes to `~/.julia/environments/v1.7/Manifest.toml`
+   Resolving package versions...
+  No Changes to `~/.julia/environments/v1.7/Project.toml`
+  No Changes to `~/.julia/environments/v1.7/Manifest.toml`
+   Resolving package versions...
+  No Changes to `~/.julia/environments/v1.7/Project.toml`
+  No Changes to `~/.julia/environments/v1.7/Manifest.toml`
+   Resolving package versions...
+  No Changes to `~/.julia/environments/v1.7/Project.toml`
+  No Changes to `~/.julia/environments/v1.7/Manifest.toml`
+   Resolving package versions...
+  No Changes to `~/.julia/environments/v1.7/Project.toml`
+  No Changes to `~/.julia/environments/v1.7/Manifest.toml`
+   Resolving package versions...
+  No Changes to `~/.julia/environments/v1.7/Project.toml`
+  No Changes to `~/.julia/environments/v1.7/Manifest.toml`
+   Resolving package versions...
+  No Changes to `~/.julia/environments/v1.7/Project.toml`
+  No Changes to `~/.julia/environments/v1.7/Manifest.toml`
+┌ Warning: Opening file with JLD2.MmapIO failed, falling back to IOStream
+└ @ JLD2 ~/.julia/packages/JLD2/k9Gt0/src/JLD2.jl:233
+ERROR: LoadError: SystemError: opening file "data/VF_dat.jld2": No such file or directory
+Stacktrace:
+  [1] systemerror(p::String, errno::Int32; extrainfo::Nothing)
+    @ Base ./error.jl:174
+  [2] #systemerror#68
+    @ ./error.jl:173 [inlined]
+  [3] systemerror
+    @ ./error.jl:173 [inlined]
+  [4] open(fname::String; lock::Bool, read::Bool, write::Bool, create::Bool, truncate::Bool, append::Bool)
+    @ Base ./iostream.jl:293
+  [5] openfile
+    @ ~/.julia/packages/JLD2/k9Gt0/src/JLD2.jl:223 [inlined]
+  [6] openfile(T::Type, fname::String, wr::Bool, create::Bool, truncate::Bool, fallback::Type)
+    @ JLD2 ~/.julia/packages/JLD2/k9Gt0/src/JLD2.jl:234
+  [7] jldopen(fname::String, wr::Bool, create::Bool, truncate::Bool, iotype::Type{JLD2.MmapIO}; fallback::Type{IOStream}, compress::Bool, mmaparrays::Bool, typemap::Dict{String, Any})
+    @ JLD2 ~/.julia/packages/JLD2/k9Gt0/src/JLD2.jl:290
+  [8] jldopen(fname::String, wr::Bool, create::Bool, truncate::Bool, iotype::Type{JLD2.MmapIO})
+    @ JLD2 ~/.julia/packages/JLD2/k9Gt0/src/JLD2.jl:253
+  [9] jldopen(fname::String, mode::String; iotype::Type, kwargs::Base.Pairs{Symbol, Union{}, Tuple{}, NamedTuple{(), Tuple{}}})
+    @ JLD2 ~/.julia/packages/JLD2/k9Gt0/src/JLD2.jl:356
+ [10] jldopen(fname::String, mode::String)
+    @ JLD2 ~/.julia/packages/JLD2/k9Gt0/src/JLD2.jl:351
+ [11] top-level scope
+    @ ~/.julia/packages/JLD2/k9Gt0/src/loadsave.jl:63
+in expression starting at /home/jhbuckne/ADP_julia/Farm_Runs/unknown_growth_rate_baseparams/run_model.jl:48
+
+caused by: SystemError: opening file "data/VF_dat.jld2": No such file or directory
+Stacktrace:
+  [1] systemerror(p::String, errno::Int32; extrainfo::Nothing)
+    @ Base ./error.jl:174
+  [2] #systemerror#68
+    @ ./error.jl:173 [inlined]
+  [3] systemerror
+    @ ./error.jl:173 [inlined]
+  [4] open(fname::String; lock::Bool, read::Bool, write::Bool, create::Bool, truncate::Bool, append::Bool)
+    @ Base ./iostream.jl:293
+  [5] JLD2.MmapIO(fname::String, write::Bool, create::Bool, truncate::Bool)
+    @ JLD2 ~/.julia/packages/JLD2/k9Gt0/src/mmapio.jl:105
+  [6] openfile
+    @ ~/.julia/packages/JLD2/k9Gt0/src/JLD2.jl:226 [inlined]
+  [7] openfile(T::Type, fname::String, wr::Bool, create::Bool, truncate::Bool, fallback::Type)
+    @ JLD2 ~/.julia/packages/JLD2/k9Gt0/src/JLD2.jl:231
+  [8] jldopen(fname::String, wr::Bool, create::Bool, truncate::Bool, iotype::Type{JLD2.MmapIO}; fallback::Type{IOStream}, compress::Bool, mmaparrays::Bool, typemap::Dict{String, Any})
+    @ JLD2 ~/.julia/packages/JLD2/k9Gt0/src/JLD2.jl:290
+  [9] jldopen(fname::String, wr::Bool, create::Bool, truncate::Bool, iotype::Type{JLD2.MmapIO})
+    @ JLD2 ~/.julia/packages/JLD2/k9Gt0/src/JLD2.jl:253
+ [10] jldopen(fname::String, mode::String; iotype::Type, kwargs::Base.Pairs{Symbol, Union{}, Tuple{}, NamedTuple{(), Tuple{}}})
+    @ JLD2 ~/.julia/packages/JLD2/k9Gt0/src/JLD2.jl:356
+ [11] jldopen(fname::String, mode::String)
+    @ JLD2 ~/.julia/packages/JLD2/k9Gt0/src/JLD2.jl:351
+ [12] top-level scope
+    @ ~/.julia/packages/JLD2/k9Gt0/src/loadsave.jl:63
+here1 25.0025
+2 84.88304375134555
+3 3.9576143150266656
+4 5.323574267070165
+5 3.0837082933136317
+6 2.319379628202204
+7 1.7770989023821493
+8 1.334038897160794
+9 1.025080886083442
+10 0.7807714090145745
+11 0.5952961791316012
+12 0.45518372338789004
+13 0.34777057671212863
+14 0.2660060392189831
+15 0.20362665770040933
+16 0.15595646259727317
+17 0.11953882367159226
+18 0.09168638867388515
+19 0.0703702743855688
+20 0.05404689513242328
+21 0.04153744517929173
+22 0.03194448071528637
+23 0.024583114013947905
+24 0.018930387027302858
+25 0.014586843900162448
+26 0.011247075217307579
+27 0.008677435722060983
+28 0.006699061457835652
+29 0.005174928835216578
+30 0.003999998170081548
+31 0.003093693898328772
+Name                : tests
+User                : jhbuckne
+Account             : adamgrp
+Partition           : med
+Nodes               : c9-97
+Cores               : 1
+GPUs                : 0
+State               : FAILED
+ExitCode            : 1:0
+Submit              : 2022-03-11T07:55:19
+Start               : 2022-03-11T07:55:21
+End                 : 2022-03-11T07:57:06
+Waited              : 00:00:02
+Reserved walltime   : 00:10:00
+Used walltime       : 00:01:45
+Used CPU time       : 00:02:36
+% User (Computation): 98.17%
+% System (I/O)      :  1.83%
+Mem reserved        : 2000M/core
+Max Mem used        : 516.41M (c9-97)
+Max Disk Write      : 10.24K (c9-97)
+Max Disk Read       : 2.08M (c9-97)

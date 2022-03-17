@@ -1,0 +1,28 @@
+==========================================
+SLURM_JOB_ID = 44635144
+SLURM_NODELIST = c8-77
+==========================================
+Module julia/1.7.0 loaded 
+Do I work?
+Name                : MyJob
+User                : jhbuckne
+Account             : adamgrp
+Partition           : med
+Nodes               : c8-77
+Cores               : 1
+GPUs                : 0
+State               : COMPLETED
+ExitCode            : 0:0
+Submit              : 2022-03-07T17:53:25
+Start               : 2022-03-07T17:53:25
+End                 : 2022-03-07T17:53:27
+Waited              : 00:00:00
+Reserved walltime   : 00:02:00
+Used walltime       : 00:00:02
+Used CPU time       : 00:00:00
+% User (Computation): 65.25%
+% System (I/O)      :  0.00%
+Mem reserved        : 2000M/core
+Max Mem used        : 0.00  (c8-77)
+Max Disk Write      : 0.00  (c8-77)
+Max Disk Read       : 0.00  (c8-77)
